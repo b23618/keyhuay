@@ -9,18 +9,31 @@ async function alterDatabase() {
   try {
     console.log('Altering lottery_entries table...')
     
-    // Add primary_type column if it doesn't exist
+    // Drop primary_type column if it exists
     await client.query(`
       ALTER TABLE lottery_entries
-      ADD COLUMN IF NOT EXISTS primary_type VARCHAR(50);
+      DROP COLUMN IF EXISTS primary_type;
     `)
-    console.log('✅ Added primary_type column')
+    console.log('✅ Dropped primary_type column')
 
-    // Create index on primary_type if it doesn't exist
+    // Add digit_length column if it doesn't exist
     await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_lottery_entries_primary_type ON lottery_entries(primary_type);
+      ALTER TABLE lottery_entries
+      ADD COLUMN IF NOT EXISTS digit_length INTEGER NOT NULL DEFAULT 4;
     `)
-    console.log('✅ Created index on primary_type')
+    console.log('✅ Added digit_length column')
+
+    // Drop old index if it exists
+    await client.query(`
+      DROP INDEX IF EXISTS idx_lottery_entries_primary_type;
+    `)
+    console.log('✅ Dropped old primary_type index')
+
+    // Create index on digit_length if it doesn't exist
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_lottery_entries_digit_length ON lottery_entries(digit_length);
+    `)
+    console.log('✅ Created index on digit_length')
 
     console.log('✅ Database altered successfully!')
   } catch (error) {

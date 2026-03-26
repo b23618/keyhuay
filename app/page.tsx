@@ -10,7 +10,7 @@ interface LotteryEntry {
   id: string
   number: string
   type: 'thai' | 'hanoi'
-  primaryType?: string
+  digitLength: number
   date: string
   timestamp: number
 }
@@ -27,7 +27,6 @@ export default function Home() {
   const [allNumbers, setAllNumbers] = useState<string[]>([])
   const [frequency, setFrequency] = useState<FrequencyEntry>({})
   const [lotteryType, setLotteryType] = useState<'thai' | 'hanoi'>('thai')
-  const [primaryType, setPrimaryType] = useState<string>('')
   const [lotteryEntries, setLotteryEntries] = useState<LotteryEntry[]>([])
   const [toasts, setToasts] = useState<Toast[]>([])
   const [digitLength, setDigitLength] = useState<3 | 4>(4)
@@ -153,7 +152,7 @@ export default function Home() {
         body: JSON.stringify({
           number: inputNumber,
           type: lotteryType,
-          primaryType: primaryType || null,
+          digitLength,
           date: `${dateStr} ${timeStr}`,
           timestamp,
         }),
@@ -174,7 +173,7 @@ export default function Home() {
         id: savedEntry.id,
         number: inputNumber,
         type: lotteryType,
-        primaryType: primaryType || undefined,
+        digitLength,
         date: `${dateStr} ${timeStr}`,
         timestamp,
       }
@@ -306,26 +305,9 @@ export default function Home() {
               <option value="hanoi">🇻🇳 ฮานอย</option>
             </select>
           </div>
-          <div className="input-group">
-            <label htmlFor="primary-type">ประเภทหลัก (ตัวเลือก)</label>
-            <input
-              id="primary-type"
-              type="text"
-              value={primaryType}
-              onChange={(e) => setPrimaryType(e.target.value)}
-              placeholder="เช่น หวยรัฐ, หวยปิงปอง, หวยหุ้น"
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '2px solid #ddd',
-                borderRadius: '8px',
-                fontSize: '1rem',
-              }}
-            />
-          </div>
-          <button className="button" onClick={() => generateReversals(inputNumber)}>
+          {/* <button className="button" onClick={() => generateReversals(inputNumber)}>
             🔄 กลับเลข
-          </button>
+          </button> */}
           <button className="button" style={{ marginTop: '10px', background: '#f39c12' }} onClick={saveLotteryEntry}>
             💾 บันทึกเลข
           </button>

@@ -13,7 +13,7 @@ async function initializeDatabase() {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         number VARCHAR(4) NOT NULL UNIQUE,
         type VARCHAR(10) NOT NULL,
-        primary_type VARCHAR(50),
+        digit_length INTEGER NOT NULL DEFAULT 4,
         date VARCHAR(50) NOT NULL,
         timestamp BIGINT NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -26,7 +26,7 @@ async function initializeDatabase() {
       CREATE INDEX IF NOT EXISTS idx_lottery_entries_type ON lottery_entries(type);
     `)
     await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_lottery_entries_primary_type ON lottery_entries(primary_type);
+      CREATE INDEX IF NOT EXISTS idx_lottery_entries_digit_length ON lottery_entries(digit_length);
     `)
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_lottery_entries_created_at ON lottery_entries(created_at DESC);
