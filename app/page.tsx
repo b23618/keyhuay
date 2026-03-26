@@ -131,6 +131,12 @@ export default function Home() {
       return
     }
 
+    const isDuplicate = lotteryEntries.some((entry) => entry.number === inputNumber)
+    if (isDuplicate) {
+      alert(`⚠️ เลข ${inputNumber} ซ้ำแล้ว! กรุณากรอกเลขอื่น`)
+      return
+    }
+
     const now = new Date()
     const dateStr = now.toLocaleDateString('th-TH', {
       year: 'numeric',
