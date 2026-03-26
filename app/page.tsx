@@ -299,26 +299,6 @@ export default function Home() {
           <button className="button" style={{ marginTop: '10px', background: '#e74c3c' }} onClick={clearAll}>
             🗑️ ล้างข้อมูล
           </button>
-          <button className="button" style={{ marginTop: '10px', background: '#27ae60' }} onClick={exportToJSON}>
-            📥 ส่งออก JSON
-          </button>
-          <div style={{ marginTop: '10px', position: 'relative' }}>
-            <input
-              type="file"
-              accept=".json"
-              onChange={importFromJSON}
-              style={{
-                position: 'absolute',
-                opacity: 0,
-                width: '100%',
-                height: '100%',
-                cursor: 'pointer',
-              }}
-            />
-            <button className="button" style={{ background: '#3498db', pointerEvents: 'none' }}>
-              📤 นำเข้า JSON
-            </button>
-          </div>
 
           {reversedNumbers.length > 0 && (
             <div className="results">
