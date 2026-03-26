@@ -10,8 +10,15 @@ interface LotteryEntry {
   id: string
   number: string
   type: 'thai' | 'hanoi'
+  primaryType?: string
   date: string
   timestamp: number
+}
+
+interface Toast {
+  id: string
+  message: string
+  type: 'success' | 'error' | 'warning' | 'info'
 }
 
 export default function Home() {
@@ -20,7 +27,19 @@ export default function Home() {
   const [allNumbers, setAllNumbers] = useState<string[]>([])
   const [frequency, setFrequency] = useState<FrequencyEntry>({})
   const [lotteryType, setLotteryType] = useState<'thai' | 'hanoi'>('thai')
+  const [primaryType, setPrimaryType] = useState<string>('')
   const [lotteryEntries, setLotteryEntries] = useState<LotteryEntry[]>([])
+  const [toasts, setToasts] = useState<Toast[]>([])
+  const [digitLength, setDigitLength] = useState<3 | 4>(4)
+
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info'): void => {
+    const id = Date.now().toString()
+    const newToast: Toast = { id, message, type }
+    setToasts((prev) => [...prev, newToast])
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id))
+    }, 3000)
+  }
 
   useEffect(() => {
     const fetchLotteryEntries = async () => {
@@ -46,8 +65,8 @@ export default function Home() {
 
 
   const generateReversals = (num: string): void => {
-    if (num.length !== 4 || !/^\d{4}$/.test(num)) {
-      alert('กรุณากรอกเลข 4 ตัว')
+    if (num.length !== digitLength || !/^\d+$/.test(num)) {
+      showToast(`กรุณากรอกเลข ${digitLength} ตัว`, 'warning')
       return
     }
 
@@ -100,14 +119,14 @@ export default function Home() {
   }
 
   const saveLotteryEntry = async (): Promise<void> => {
-    if (inputNumber.length !== 4 || !/^\d{4}$/.test(inputNumber)) {
-      alert('กรุณากรอกเลข 4 ตัว')
+    if (inputNumber.length !== digitLength || !/^\d+$/.test(inputNumber)) {
+      showToast(`กรุณากรอกเลข ${digitLength} ตัว`, 'warning')
       return
     }
 
     const isDuplicate = lotteryEntries.some((entry) => entry.number === inputNumber)
     if (isDuplicate) {
-      alert(`⚠️ เลข ${inputNumber} ซ้ำแล้ว! กรุณากรอกเลขอื่น`)
+      showToast(`⚠️ เลข ${inputNumber} ซ้ำแล้ว! กรุณากรอกเลขอื่น`, 'warning')
       return
     }
 
@@ -134,13 +153,14 @@ export default function Home() {
         body: JSON.stringify({
           number: inputNumber,
           type: lotteryType,
+          primaryType: primaryType || null,
           date: `${dateStr} ${timeStr}`,
           timestamp,
         }),
       })
 
       if (response.status === 409) {
-        alert(`⚠️ เลข ${inputNumber} ซ้ำแล้ว! กรุณากรอกเลขอื่น`)
+        showToast(`⚠️ เลข ${inputNumber} ซ้ำแล้ว! กรุณากรอกเลขอื่น`, 'warning')
         return
       }
 
@@ -154,16 +174,17 @@ export default function Home() {
         id: savedEntry.id,
         number: inputNumber,
         type: lotteryType,
+        primaryType: primaryType || undefined,
         date: `${dateStr} ${timeStr}`,
         timestamp,
       }
 
       setLotteryEntries([newEntry, ...lotteryEntries])
       setInputNumber('')
-      alert('✅ บันทึกเลขสำเร็จ')
+      showToast('✅ บันทึกเลขสำเร็จ', 'success')
     } catch (error) {
       console.error('Error saving entry:', error)
-      alert('❌ เกิดข้อผิดพลาดในการบันทึก')
+      showToast('❌ เกิดข้อผิดพลาดในการบันทึก', 'error')
     }
   }
 
@@ -180,7 +201,7 @@ export default function Home() {
       setLotteryEntries(lotteryEntries.filter((entry) => entry.id !== id))
     } catch (error) {
       console.error('Error deleting entry:', error)
-      alert('❌ เกิดข้อผิดพลาดในการลบ')
+      showToast('❌ เกิดข้อผิดพลาดในการลบ', 'error')
     }
   }
 
@@ -231,18 +252,40 @@ export default function Home() {
 
       <div className="main-grid">
         <div className="card">
-          <h2>📝 กรอกเลข 4 ตัว</h2>
+          <h2>📝 กรอกเลข</h2>
           <div className="input-group">
-            <label htmlFor="number">เลข 4 ตัว (เช่น 0561)</label>
+            <label htmlFor="digit-length">จำนวนตัวเลข</label>
+            <select
+              id="digit-length"
+              value={digitLength}
+              onChange={(e) => {
+                setDigitLength(parseInt(e.target.value) as 3 | 4)
+                setInputNumber('')
+                setReversedNumbers([])
+              }}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '2px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '1rem',
+              }}
+            >
+              <option value="3">3 ตัว (เช่น 056)</option>
+              <option value="4">4 ตัว (เช่น 0561)</option>
+            </select>
+          </div>
+          <div className="input-group">
+            <label htmlFor="number">เลข {digitLength} ตัว</label>
             <input
               id="number"
               type="text"
               inputMode="numeric"
-              maxLength={4}
+              maxLength={digitLength}
               value={inputNumber}
               onChange={(e) => setInputNumber(e.target.value.replace(/\D/g, ''))}
               onKeyPress={handleKeyPress}
-              placeholder="0000"
+              placeholder={digitLength === 3 ? '000' : '0000'}
             />
           </div>
           <div className="input-group">
@@ -262,6 +305,23 @@ export default function Home() {
               <option value="thai">🇹🇭 ไทย</option>
               <option value="hanoi">🇻🇳 ฮานอย</option>
             </select>
+          </div>
+          <div className="input-group">
+            <label htmlFor="primary-type">ประเภทหลัก (ตัวเลือก)</label>
+            <input
+              id="primary-type"
+              type="text"
+              value={primaryType}
+              onChange={(e) => setPrimaryType(e.target.value)}
+              placeholder="เช่น หวยรัฐ, หวยปิงปอง, หวยหุ้น"
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '2px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '1rem',
+              }}
+            />
           </div>
           <button className="button" onClick={() => generateReversals(inputNumber)}>
             🔄 กลับเลข
@@ -503,6 +563,62 @@ export default function Home() {
           </div>
         </>
       )}
+
+      {/* Toast Notifications */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px',
+          maxWidth: '400px',
+        }}
+      >
+        {toasts.map((toast) => {
+          const bgColor =
+            toast.type === 'success'
+              ? '#27ae60'
+              : toast.type === 'error'
+                ? '#e74c3c'
+                : toast.type === 'warning'
+                  ? '#f39c12'
+                  : '#3498db'
+          return (
+            <div
+              key={toast.id}
+              style={{
+                background: bgColor,
+                color: 'white',
+                padding: '12px 16px',
+                borderRadius: '6px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                fontSize: '0.95rem',
+                fontWeight: '500',
+                animation: 'slideIn 0.3s ease-out',
+                wordWrap: 'break-word',
+              }}
+            >
+              {toast.message}
+            </div>
+          )
+        })}
+      </div>
+
+      <style>{`
+        @keyframes slideIn {
+          from {
+            transform: translateX(400px);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   )
 }
