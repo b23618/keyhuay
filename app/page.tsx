@@ -31,6 +31,7 @@ export default function Home() {
   const [toasts, setToasts] = useState<Toast[]>([])
   const [digitLength, setDigitLength] = useState<3 | 4>(4)
   const [analysisTab, setAnalysisTab] = useState<3 | 4>(4)
+  const [analysisTypeTab, setAnalysisTypeTab] = useState<'thai' | 'hanoi'>('thai')
   const [entriesPage, setEntriesPage] = useState<number>(1)
   const ENTRIES_PER_PAGE = 50
 
@@ -222,10 +223,13 @@ export default function Home() {
     return digits
   }
 
-  const analyzeSavedEntries = (filterByDigitLength?: 3 | 4): { [key: string]: { count: number; examples: string[] } } => {
+  const analyzeSavedEntries = (filterByDigitLength?: 3 | 4, filterByType?: 'thai' | 'hanoi'): { [key: string]: { count: number; examples: string[] } } => {
     const entryFrequency: { [key: string]: { count: number; examples: string[] } } = {}
     lotteryEntries.forEach((entry) => {
       if (filterByDigitLength && entry.digitLength !== filterByDigitLength) {
+        return
+      }
+      if (filterByType && entry.type !== filterByType) {
         return
       }
       const normalized = getNormalizedNumber(entry.number)
@@ -240,21 +244,51 @@ export default function Home() {
     return entryFrequency
   }
 
+  // 3-digit analysis
   const savedEntryFrequency3Digit = analyzeSavedEntries(3)
   const sortedSavedFrequency3Digit = Object.entries(savedEntryFrequency3Digit)
     .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
+  const savedEntryFrequency3DigitThai = analyzeSavedEntries(3, 'thai')
+  const sortedSavedFrequency3DigitThai = Object.entries(savedEntryFrequency3DigitThai)
+    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+
+  const savedEntryFrequency3DigitHanoi = analyzeSavedEntries(3, 'hanoi')
+  const sortedSavedFrequency3DigitHanoi = Object.entries(savedEntryFrequency3DigitHanoi)
+    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+
+  // 4-digit analysis
   const savedEntryFrequency4Digit = analyzeSavedEntries(4)
   const sortedSavedFrequency4Digit = Object.entries(savedEntryFrequency4Digit)
     .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
-  const totalSavedEntries = lotteryEntries.length
+  const savedEntryFrequency4DigitThai = analyzeSavedEntries(4, 'thai')
+  const sortedSavedFrequency4DigitThai = Object.entries(savedEntryFrequency4DigitThai)
+    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+
+  const savedEntryFrequency4DigitHanoi = analyzeSavedEntries(4, 'hanoi')
+  const sortedSavedFrequency4DigitHanoi = Object.entries(savedEntryFrequency4DigitHanoi)
+    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+
+  // Totals
   const totalSavedEntries3Digit = lotteryEntries.filter((e) => e.digitLength === 3).length
   const totalSavedEntries4Digit = lotteryEntries.filter((e) => e.digitLength === 4).length
+  const totalSavedEntries3DigitThai = lotteryEntries.filter((e) => e.digitLength === 3 && e.type === 'thai').length
+  const totalSavedEntries3DigitHanoi = lotteryEntries.filter((e) => e.digitLength === 3 && e.type === 'hanoi').length
+  const totalSavedEntries4DigitThai = lotteryEntries.filter((e) => e.digitLength === 4 && e.type === 'thai').length
+  const totalSavedEntries4DigitHanoi = lotteryEntries.filter((e) => e.digitLength === 4 && e.type === 'hanoi').length
 
   return (
     <div className="container">
@@ -469,109 +503,307 @@ export default function Home() {
               </button>
             </div>
 
-            {analysisTab === 3 && sortedSavedFrequency3Digit.length > 0 && (
+            {analysisTab === 3 && (
               <>
-                <div className="stat-grid">
-                  <div className="stat-box">
-                    <div className="number">{totalSavedEntries3Digit}</div>
-                    <div className="label">ทั้งหมด</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="number">{Object.keys(savedEntryFrequency3Digit).length}</div>
-                    <div className="label">เลขที่ต่างกัน</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="number">{sortedSavedFrequency3Digit[0]?.[1] || 0}</div>
-                    <div className="label">ออกบ่อยสุด</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="number">{sortedSavedFrequency3Digit[0]?.[0] || '-'}</div>
-                    <div className="label">เลขนั้น</div>
-                  </div>
+                {/* Nested tabs for lottery type */}
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', marginTop: '15px' }}>
+                  <button
+                    onClick={() => setAnalysisTypeTab('thai')}
+                    style={{
+                      padding: '8px 16px',
+                      background: analysisTypeTab === 'thai' ? '#27ae60' : 'transparent',
+                      color: analysisTypeTab === 'thai' ? 'white' : '#333',
+                      border: 'none',
+                      borderBottom: analysisTypeTab === 'thai' ? '2px solid #27ae60' : 'none',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: analysisTypeTab === 'thai' ? '600' : '500',
+                    }}
+                  >
+                    🇹🇭 ไทย ({totalSavedEntries3DigitThai})
+                  </button>
+                  <button
+                    onClick={() => setAnalysisTypeTab('hanoi')}
+                    style={{
+                      padding: '8px 16px',
+                      background: analysisTypeTab === 'hanoi' ? '#e74c3c' : 'transparent',
+                      color: analysisTypeTab === 'hanoi' ? 'white' : '#333',
+                      border: 'none',
+                      borderBottom: analysisTypeTab === 'hanoi' ? '2px solid #e74c3c' : 'none',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: analysisTypeTab === 'hanoi' ? '600' : '500',
+                    }}
+                  >
+                    🇻🇳 ฮานอย ({totalSavedEntries3DigitHanoi})
+                  </button>
                 </div>
 
-                <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
-                  🏆 Top 10 เลขที่ออกบ่อยสุดจากบันทึก (3 ตัว)
-                </h3>
-                <table className="frequency-table">
-                  <thead>
-                    <tr>
-                      <th>อันดับ</th>
-                      <th>เลขกลับ</th>
-                      <th>ตัวอย่าง</th>
-                      <th>ครั้ง</th>
-                      <th>ร้อยละ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedSavedFrequency3Digit.map((item, idx) => (
-                      <tr key={idx}>
-                        <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
-                        <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
-                        <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
-                          {(item[2] as string[]).join(', ')}
-                        </td>
-                        <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
-                        <td className="percentage" style={{ textAlign: 'center' }}>
-                          {((item[1] / totalSavedEntries3Digit) * 100).toFixed(1)}%
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {analysisTypeTab === 'thai' && sortedSavedFrequency3DigitThai.length > 0 && (
+                  <>
+                    <div className="stat-grid">
+                      <div className="stat-box">
+                        <div className="number">{totalSavedEntries3DigitThai}</div>
+                        <div className="label">ทั้งหมด</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{Object.keys(savedEntryFrequency3DigitThai).length}</div>
+                        <div className="label">เลขที่ต่างกัน</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{sortedSavedFrequency3DigitThai[0]?.[1] || 0}</div>
+                        <div className="label">ออกบ่อยสุด</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{sortedSavedFrequency3DigitThai[0]?.[0] || '-'}</div>
+                        <div className="label">เลขนั้น</div>
+                      </div>
+                    </div>
+
+                    <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
+                      🏆 Top 10 เลขที่ออกบ่อยสุดจากบันทึก (3 ตัว - ไทย)
+                    </h3>
+                    <table className="frequency-table">
+                      <thead>
+                        <tr>
+                          <th>อันดับ</th>
+                          <th>เลขกลับ</th>
+                          <th>ตัวอย่าง</th>
+                          <th>ครั้ง</th>
+                          <th>ร้อยละ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedSavedFrequency3DigitThai.map((item, idx) => (
+                          <tr key={idx}>
+                            <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
+                            <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
+                            <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+                              {(item[2] as string[]).join(', ')}
+                            </td>
+                            <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
+                            <td className="percentage" style={{ textAlign: 'center' }}>
+                              {((item[1] / totalSavedEntries3DigitThai) * 100).toFixed(1)}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+
+                {analysisTypeTab === 'hanoi' && sortedSavedFrequency3DigitHanoi.length > 0 && (
+                  <>
+                    <div className="stat-grid">
+                      <div className="stat-box">
+                        <div className="number">{totalSavedEntries3DigitHanoi}</div>
+                        <div className="label">ทั้งหมด</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{Object.keys(savedEntryFrequency3DigitHanoi).length}</div>
+                        <div className="label">เลขที่ต่างกัน</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{sortedSavedFrequency3DigitHanoi[0]?.[1] || 0}</div>
+                        <div className="label">ออกบ่อยสุด</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{sortedSavedFrequency3DigitHanoi[0]?.[0] || '-'}</div>
+                        <div className="label">เลขนั้น</div>
+                      </div>
+                    </div>
+
+                    <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
+                      🏆 Top 10 เลขที่ออกบ่อยสุดจากบันทึก (3 ตัว - ฮานอย)
+                    </h3>
+                    <table className="frequency-table">
+                      <thead>
+                        <tr>
+                          <th>อันดับ</th>
+                          <th>เลขกลับ</th>
+                          <th>ตัวอย่าง</th>
+                          <th>ครั้ง</th>
+                          <th>ร้อยละ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedSavedFrequency3DigitHanoi.map((item, idx) => (
+                          <tr key={idx}>
+                            <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
+                            <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
+                            <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+                              {(item[2] as string[]).join(', ')}
+                            </td>
+                            <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
+                            <td className="percentage" style={{ textAlign: 'center' }}>
+                              {((item[1] / totalSavedEntries3DigitHanoi) * 100).toFixed(1)}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+
+                {analysisTypeTab === 'thai' && sortedSavedFrequency3DigitThai.length === 0 && (
+                  <div className="empty-state">ยังไม่มีข้อมูล 3 ตัว ไทย</div>
+                )}
+
+                {analysisTypeTab === 'hanoi' && sortedSavedFrequency3DigitHanoi.length === 0 && (
+                  <div className="empty-state">ยังไม่มีข้อมูล 3 ตัว ฮานอย</div>
+                )}
               </>
             )}
 
-            {analysisTab === 4 && sortedSavedFrequency4Digit.length > 0 && (
+            {analysisTab === 4 && (
               <>
-                <div className="stat-grid">
-                  <div className="stat-box">
-                    <div className="number">{totalSavedEntries4Digit}</div>
-                    <div className="label">ทั้งหมด</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="number">{Object.keys(savedEntryFrequency4Digit).length}</div>
-                    <div className="label">เลขที่ต่างกัน</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="number">{sortedSavedFrequency4Digit[0]?.[1] || 0}</div>
-                    <div className="label">ออกบ่อยสุด</div>
-                  </div>
-                  <div className="stat-box">
-                    <div className="number">{sortedSavedFrequency4Digit[0]?.[0] || '-'}</div>
-                    <div className="label">เลขนั้น</div>
-                  </div>
+                {/* Nested tabs for lottery type */}
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', marginTop: '15px' }}>
+                  <button
+                    onClick={() => setAnalysisTypeTab('thai')}
+                    style={{
+                      padding: '8px 16px',
+                      background: analysisTypeTab === 'thai' ? '#27ae60' : 'transparent',
+                      color: analysisTypeTab === 'thai' ? 'white' : '#333',
+                      border: 'none',
+                      borderBottom: analysisTypeTab === 'thai' ? '2px solid #27ae60' : 'none',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: analysisTypeTab === 'thai' ? '600' : '500',
+                    }}
+                  >
+                    🇹🇭 ไทย ({totalSavedEntries4DigitThai})
+                  </button>
+                  <button
+                    onClick={() => setAnalysisTypeTab('hanoi')}
+                    style={{
+                      padding: '8px 16px',
+                      background: analysisTypeTab === 'hanoi' ? '#e74c3c' : 'transparent',
+                      color: analysisTypeTab === 'hanoi' ? 'white' : '#333',
+                      border: 'none',
+                      borderBottom: analysisTypeTab === 'hanoi' ? '2px solid #e74c3c' : 'none',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: analysisTypeTab === 'hanoi' ? '600' : '500',
+                    }}
+                  >
+                    🇻🇳 ฮานอย ({totalSavedEntries4DigitHanoi})
+                  </button>
                 </div>
 
-                <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
-                  🏆 Top 10 เลขที่ออกบ่อยสุดจากบันทึก (4 ตัว)
-                </h3>
-                <table className="frequency-table">
-                  <thead>
-                    <tr>
-                      <th>อันดับ</th>
-                      <th>เลขกลับ</th>
-                      <th>ตัวอย่าง</th>
-                      <th>ครั้ง</th>
-                      <th>ร้อยละ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedSavedFrequency4Digit.map((item, idx) => (
-                      <tr key={idx}>
-                        <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
-                        <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
-                        <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
-                          {(item[2] as string[]).join(', ')}
-                        </td>
-                        <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
-                        <td className="percentage" style={{ textAlign: 'center' }}>
-                          {((item[1] / totalSavedEntries4Digit) * 100).toFixed(1)}%
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {analysisTypeTab === 'thai' && sortedSavedFrequency4DigitThai.length > 0 && (
+                  <>
+                    <div className="stat-grid">
+                      <div className="stat-box">
+                        <div className="number">{totalSavedEntries4DigitThai}</div>
+                        <div className="label">ทั้งหมด</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{Object.keys(savedEntryFrequency4DigitThai).length}</div>
+                        <div className="label">เลขที่ต่างกัน</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{sortedSavedFrequency4DigitThai[0]?.[1] || 0}</div>
+                        <div className="label">ออกบ่อยสุด</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{sortedSavedFrequency4DigitThai[0]?.[0] || '-'}</div>
+                        <div className="label">เลขนั้น</div>
+                      </div>
+                    </div>
+
+                    <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
+                      🏆 Top 10 เลขที่ออกบ่อยสุดจากบันทึก (4 ตัว - ไทย)
+                    </h3>
+                    <table className="frequency-table">
+                      <thead>
+                        <tr>
+                          <th>อันดับ</th>
+                          <th>เลขกลับ</th>
+                          <th>ตัวอย่าง</th>
+                          <th>ครั้ง</th>
+                          <th>ร้อยละ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedSavedFrequency4DigitThai.map((item, idx) => (
+                          <tr key={idx}>
+                            <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
+                            <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
+                            <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+                              {(item[2] as string[]).join(', ')}
+                            </td>
+                            <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
+                            <td className="percentage" style={{ textAlign: 'center' }}>
+                              {((item[1] / totalSavedEntries4DigitThai) * 100).toFixed(1)}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+
+                {analysisTypeTab === 'hanoi' && sortedSavedFrequency4DigitHanoi.length > 0 && (
+                  <>
+                    <div className="stat-grid">
+                      <div className="stat-box">
+                        <div className="number">{totalSavedEntries4DigitHanoi}</div>
+                        <div className="label">ทั้งหมด</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{Object.keys(savedEntryFrequency4DigitHanoi).length}</div>
+                        <div className="label">เลขที่ต่างกัน</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{sortedSavedFrequency4DigitHanoi[0]?.[1] || 0}</div>
+                        <div className="label">ออกบ่อยสุด</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{sortedSavedFrequency4DigitHanoi[0]?.[0] || '-'}</div>
+                        <div className="label">เลขนั้น</div>
+                      </div>
+                    </div>
+
+                    <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
+                      🏆 Top 10 เลขที่ออกบ่อยสุดจากบันทึก (4 ตัว - ฮานอย)
+                    </h3>
+                    <table className="frequency-table">
+                      <thead>
+                        <tr>
+                          <th>อันดับ</th>
+                          <th>เลขกลับ</th>
+                          <th>ตัวอย่าง</th>
+                          <th>ครั้ง</th>
+                          <th>ร้อยละ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedSavedFrequency4DigitHanoi.map((item, idx) => (
+                          <tr key={idx}>
+                            <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
+                            <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
+                            <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+                              {(item[2] as string[]).join(', ')}
+                            </td>
+                            <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
+                            <td className="percentage" style={{ textAlign: 'center' }}>
+                              {((item[1] / totalSavedEntries4DigitHanoi) * 100).toFixed(1)}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+
+                {analysisTypeTab === 'thai' && sortedSavedFrequency4DigitThai.length === 0 && (
+                  <div className="empty-state">ยังไม่มีข้อมูล 4 ตัว ไทย</div>
+                )}
+
+                {analysisTypeTab === 'hanoi' && sortedSavedFrequency4DigitHanoi.length === 0 && (
+                  <div className="empty-state">ยังไม่มีข้อมูล 4 ตัว ฮานอย</div>
+                )}
               </>
             )}
 
@@ -582,60 +814,6 @@ export default function Home() {
             {analysisTab === 4 && sortedSavedFrequency4Digit.length === 0 && (
               <div className="empty-state">ยังไม่มีข้อมูล 4 ตัว</div>
             )}
-
-            {/* {sortedSavedFrequency.length > 0 && (
-              <>
-                <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
-                  🏆 Top 10 เลขที่ออกบ่อยสุดจากบันทึก (นับเลขกลับเป็นเลขเดียวกัน)
-                </h3>
-                <table className="frequency-table">
-                  <thead>
-                    <tr>
-                      <th>อันดับ</th>
-                      <th>เลขกลับ</th>
-                      <th>ตัวอย่าง</th>
-                      <th>ครั้ง</th>
-                      <th>ร้อยละ</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedSavedFrequency.map((item, idx) => (
-                      <tr key={idx}>
-                        <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
-                        <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
-                        <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
-                          {(item[2] as string[]).join(', ')}
-                        </td>
-                        <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
-                        <td className="percentage" style={{ textAlign: 'center' }}>
-                          {((item[1] / totalSavedEntries) * 100).toFixed(1)}%
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
-                  📈 กราฟแสดงความถี่จากบันทึก
-                </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-                  {sortedSavedFrequency.map((item, idx) => {
-                    const maxCount = sortedSavedFrequency[0][1]
-                    const percentage = (item[1] / maxCount) * 100
-                    return (
-                      <div key={idx}>
-                        <div style={{ marginBottom: '8px', fontWeight: '600', color: '#333' }}>
-                          เลข {item[0]} ({item[1]} ครั้ง)
-                        </div>
-                        <div className="bar" style={{ width: `${percentage}%` }}>
-                          <span className="bar-label">{percentage.toFixed(0)}%</span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </>
-            )} */}
           </div>
 
           <div className="card full-width">
