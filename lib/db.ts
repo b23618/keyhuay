@@ -1,4 +1,4 @@
-import { Pool, QueryResult } from 'pg'
+import { Pool, QueryResult, QueryResultRow } from 'pg'
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -8,7 +8,7 @@ pool.on('error', (err: Error) => {
   console.error('Unexpected error on idle client', err)
 })
 
-export async function query<T = any>(
+export async function query<T extends QueryResultRow = any>(
   text: string,
   params?: any[]
 ): Promise<QueryResult<T>> {
