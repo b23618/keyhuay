@@ -11,7 +11,7 @@ async function initializeDatabase() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS lottery_entries (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        number VARCHAR(4) NOT NULL UNIQUE,
+        number VARCHAR(4) NOT NULL,
         type VARCHAR(10) NOT NULL,
         digit_length INTEGER NOT NULL DEFAULT 4,
         date VARCHAR(50) NOT NULL,

@@ -47,23 +47,35 @@ export default function Home() {
   useEffect(() => {
     const fetchLotteryEntries = async () => {
       try {
-        console.log('Fetching lottery entries from database...')
         const response = await fetch('/api/lottery')
         if (!response.ok) {
           throw new Error('Failed to fetch entries')
         }
         const entries: LotteryEntry[] = await response.json()
-        console.log('Fetched entries:', entries)
-        setLotteryEntries(entries)
+        
+        // Only update state if data has changed (smooth update, no flicker)
+        setLotteryEntries((prevEntries) => {
+          if (JSON.stringify(prevEntries) !== JSON.stringify(entries)) {
+            return entries
+          }
+          return prevEntries
+        })
       } catch (error) {
         console.error('Error fetching entries from database:', error)
       }
     }
 
     localStorage.clear()
-    console.log('Cleared localStorage')
     
     fetchLotteryEntries()
+
+    // Real-time polling - fetch data every 3 seconds (smooth background updates)
+    const intervalId = setInterval(() => {
+      fetchLotteryEntries()
+    }, 3000)
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(intervalId)
   }, [])
 
 

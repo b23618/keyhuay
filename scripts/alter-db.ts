@@ -35,6 +35,13 @@ async function alterDatabase() {
     `)
     console.log('✅ Created index on digit_length')
 
+    // Drop UNIQUE constraint on number column if it exists
+    await client.query(`
+      ALTER TABLE lottery_entries
+      DROP CONSTRAINT IF EXISTS lottery_entries_number_key;
+    `)
+    console.log('✅ Dropped UNIQUE constraint on number column')
+
     console.log('✅ Database altered successfully!')
   } catch (error) {
     console.error('❌ Error altering database:', error)
