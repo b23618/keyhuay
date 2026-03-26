@@ -72,7 +72,7 @@ export default function Home() {
     // Real-time polling - fetch data every 3 seconds (smooth background updates)
     const intervalId = setInterval(() => {
       fetchLotteryEntries()
-    }, 3000)
+    }, 5000)
 
     // Cleanup interval on component unmount
     return () => clearInterval(intervalId)
