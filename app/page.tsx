@@ -125,7 +125,7 @@ export default function Home() {
     localStorage.removeItem('keyhuayData')
   }
 
-  const saveLotteryEntry = (): void => {
+  const saveLotteryEntry = async (): Promise<void> => {
     if (inputNumber.length !== 4 || !/^\d{4}$/.test(inputNumber)) {
       alert('กรุณากรอกเลข 4 ตัว')
       return
@@ -149,21 +149,65 @@ export default function Home() {
       second: '2-digit',
     })
 
-    const newEntry: LotteryEntry = {
-      id: `${Date.now()}-${Math.random()}`,
-      number: inputNumber,
-      type: lotteryType,
-      date: `${dateStr} ${timeStr}`,
-      timestamp: Date.now(),
-    }
+    const timestamp = Date.now()
 
-    setLotteryEntries([newEntry, ...lotteryEntries])
-    setInputNumber('')
-    alert('✅ บันทึกเลขสำเร็จ')
+    try {
+      const response = await fetch('/api/lottery', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          number: inputNumber,
+          type: lotteryType,
+          date: `${dateStr} ${timeStr}`,
+          timestamp,
+        }),
+      })
+
+      if (response.status === 409) {
+        alert(`⚠️ เลข ${inputNumber} ซ้ำแล้ว! กรุณากรอกเลขอื่น`)
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to save entry')
+      }
+
+      const savedEntry = await response.json()
+
+      const newEntry: LotteryEntry = {
+        id: savedEntry.id,
+        number: inputNumber,
+        type: lotteryType,
+        date: `${dateStr} ${timeStr}`,
+        timestamp,
+      }
+
+      setLotteryEntries([newEntry, ...lotteryEntries])
+      setInputNumber('')
+      alert('✅ บันทึกเลขสำเร็จ')
+    } catch (error) {
+      console.error('Error saving entry:', error)
+      alert('❌ เกิดข้อผิดพลาดในการบันทึก')
+    }
   }
 
-  const deleteLotteryEntry = (id: string): void => {
-    setLotteryEntries(lotteryEntries.filter((entry) => entry.id !== id))
+  const deleteLotteryEntry = async (id: string): Promise<void> => {
+    try {
+      const response = await fetch(`/api/lottery/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete entry')
+      }
+
+      setLotteryEntries(lotteryEntries.filter((entry) => entry.id !== id))
+    } catch (error) {
+      console.error('Error deleting entry:', error)
+      alert('❌ เกิดข้อผิดพลาดในการลบ')
+    }
   }
 
   const getLotteryTypeLabel = (type: 'thai' | 'hanoi'): string => {
