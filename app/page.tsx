@@ -240,12 +240,6 @@ export default function Home() {
     return entryFrequency
   }
 
-  const savedEntryFrequency = analyzeSavedEntries()
-  const sortedSavedFrequency = Object.entries(savedEntryFrequency)
-    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10)
-
   const savedEntryFrequency3Digit = analyzeSavedEntries(3)
   const sortedSavedFrequency3Digit = Object.entries(savedEntryFrequency3Digit)
     .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
