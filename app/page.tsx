@@ -127,12 +127,6 @@ export default function Home() {
       return
     }
 
-    // const isDuplicate = lotteryEntries.some((entry) => entry.number === inputNumber)
-    // if (isDuplicate) {
-    //   showToast(`⚠️ เลข ${inputNumber} ซ้ำแล้ว! กรุณากรอกเลขอื่น`, 'warning')
-    //   return
-    // }
-
     const now = new Date()
     const dateStr = now.toLocaleDateString('th-TH', {
       year: 'numeric',
@@ -161,11 +155,6 @@ export default function Home() {
           timestamp,
         }),
       })
-
-      if (response.status === 409) {
-        showToast(`⚠️ เลข ${inputNumber} ซ้ำแล้ว! กรุณากรอกเลขอื่น`, 'warning')
-        return
-      }
 
       if (!response.ok) {
         throw new Error('Failed to save entry')

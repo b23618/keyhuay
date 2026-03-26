@@ -25,17 +25,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    console.log('Checking for duplicate number:', number)
-    const existingResult = await query(
-      'SELECT id FROM lottery_entries WHERE number = $1',
-      [number]
-    )
-
-    if (existingResult.rows.length > 0) {
-      console.warn('Duplicate number found:', number)
-      return NextResponse.json({ error: 'Duplicate number' }, { status: 409 })
-    }
-
     console.log('Inserting new entry:', { number, type, digitLength, date, timestamp })
     const result = await query(
       'INSERT INTO lottery_entries (number, type, digit_length, date, timestamp) VALUES ($1, $2, $3, $4, $5) RETURNING id, number, type, digit_length as "digitLength", date, timestamp, created_at as "createdAt", updated_at as "updatedAt"',
