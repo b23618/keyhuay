@@ -30,6 +30,9 @@ export default function Home() {
   const [lotteryEntries, setLotteryEntries] = useState<LotteryEntry[]>([])
   const [toasts, setToasts] = useState<Toast[]>([])
   const [digitLength, setDigitLength] = useState<3 | 4>(4)
+  const [analysisTab, setAnalysisTab] = useState<3 | 4>(4)
+  const [entriesPage, setEntriesPage] = useState<number>(1)
+  const ENTRIES_PER_PAGE = 50
 
   const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info'): void => {
     const id = Date.now().toString()
@@ -219,9 +222,12 @@ export default function Home() {
     return digits
   }
 
-  const analyzeSavedEntries = (): { [key: string]: { count: number; examples: string[] } } => {
+  const analyzeSavedEntries = (filterByDigitLength?: 3 | 4): { [key: string]: { count: number; examples: string[] } } => {
     const entryFrequency: { [key: string]: { count: number; examples: string[] } } = {}
     lotteryEntries.forEach((entry) => {
+      if (filterByDigitLength && entry.digitLength !== filterByDigitLength) {
+        return
+      }
       const normalized = getNormalizedNumber(entry.number)
       if (!entryFrequency[normalized]) {
         entryFrequency[normalized] = { count: 0, examples: [] }
@@ -240,7 +246,21 @@ export default function Home() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
+  const savedEntryFrequency3Digit = analyzeSavedEntries(3)
+  const sortedSavedFrequency3Digit = Object.entries(savedEntryFrequency3Digit)
+    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+
+  const savedEntryFrequency4Digit = analyzeSavedEntries(4)
+  const sortedSavedFrequency4Digit = Object.entries(savedEntryFrequency4Digit)
+    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+
   const totalSavedEntries = lotteryEntries.length
+  const totalSavedEntries3Digit = lotteryEntries.filter((e) => e.digitLength === 3).length
+  const totalSavedEntries4Digit = lotteryEntries.filter((e) => e.digitLength === 4).length
 
   return (
     <div className="container">
@@ -420,27 +440,157 @@ export default function Home() {
         <>
           <div className="card full-width">
             <h2>📊 วิเคราะห์เลขที่บันทึก - เลขที่ออกบ่อยสุด</h2>
-            {sortedSavedFrequency.length > 0 && (
+            
+            {/* Tabs for digit length */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '2px solid #ddd' }}>
+              <button
+                onClick={() => setAnalysisTab(3)}
+                style={{
+                  padding: '10px 20px',
+                  background: analysisTab === 3 ? '#3498db' : 'transparent',
+                  color: analysisTab === 3 ? 'white' : '#333',
+                  border: 'none',
+                  borderBottom: analysisTab === 3 ? '3px solid #3498db' : 'none',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: analysisTab === 3 ? '600' : '500',
+                }}
+              >
+                3 ตัว ({totalSavedEntries3Digit})
+              </button>
+              <button
+                onClick={() => setAnalysisTab(4)}
+                style={{
+                  padding: '10px 20px',
+                  background: analysisTab === 4 ? '#3498db' : 'transparent',
+                  color: analysisTab === 4 ? 'white' : '#333',
+                  border: 'none',
+                  borderBottom: analysisTab === 4 ? '3px solid #3498db' : 'none',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: analysisTab === 4 ? '600' : '500',
+                }}
+              >
+                4 ตัว ({totalSavedEntries4Digit})
+              </button>
+            </div>
+
+            {analysisTab === 3 && sortedSavedFrequency3Digit.length > 0 && (
               <>
                 <div className="stat-grid">
                   <div className="stat-box">
-                    <div className="number">{totalSavedEntries}</div>
+                    <div className="number">{totalSavedEntries3Digit}</div>
                     <div className="label">ทั้งหมด</div>
                   </div>
                   <div className="stat-box">
-                    <div className="number">{Object.keys(savedEntryFrequency).length}</div>
+                    <div className="number">{Object.keys(savedEntryFrequency3Digit).length}</div>
                     <div className="label">เลขที่ต่างกัน</div>
                   </div>
                   <div className="stat-box">
-                    <div className="number">{sortedSavedFrequency[0]?.[1] || 0}</div>
+                    <div className="number">{sortedSavedFrequency3Digit[0]?.[1] || 0}</div>
                     <div className="label">ออกบ่อยสุด</div>
                   </div>
                   <div className="stat-box">
-                    <div className="number">{sortedSavedFrequency[0]?.[0] || '-'}</div>
+                    <div className="number">{sortedSavedFrequency3Digit[0]?.[0] || '-'}</div>
                     <div className="label">เลขนั้น</div>
                   </div>
                 </div>
 
+                <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
+                  🏆 Top 10 เลขที่ออกบ่อยสุดจากบันทึก (3 ตัว)
+                </h3>
+                <table className="frequency-table">
+                  <thead>
+                    <tr>
+                      <th>อันดับ</th>
+                      <th>เลขกลับ</th>
+                      <th>ตัวอย่าง</th>
+                      <th>ครั้ง</th>
+                      <th>ร้อยละ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedSavedFrequency3Digit.map((item, idx) => (
+                      <tr key={idx}>
+                        <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
+                        <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
+                        <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+                          {(item[2] as string[]).join(', ')}
+                        </td>
+                        <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
+                        <td className="percentage" style={{ textAlign: 'center' }}>
+                          {((item[1] / totalSavedEntries3Digit) * 100).toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {analysisTab === 4 && sortedSavedFrequency4Digit.length > 0 && (
+              <>
+                <div className="stat-grid">
+                  <div className="stat-box">
+                    <div className="number">{totalSavedEntries4Digit}</div>
+                    <div className="label">ทั้งหมด</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="number">{Object.keys(savedEntryFrequency4Digit).length}</div>
+                    <div className="label">เลขที่ต่างกัน</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="number">{sortedSavedFrequency4Digit[0]?.[1] || 0}</div>
+                    <div className="label">ออกบ่อยสุด</div>
+                  </div>
+                  <div className="stat-box">
+                    <div className="number">{sortedSavedFrequency4Digit[0]?.[0] || '-'}</div>
+                    <div className="label">เลขนั้น</div>
+                  </div>
+                </div>
+
+                <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
+                  🏆 Top 10 เลขที่ออกบ่อยสุดจากบันทึก (4 ตัว)
+                </h3>
+                <table className="frequency-table">
+                  <thead>
+                    <tr>
+                      <th>อันดับ</th>
+                      <th>เลขกลับ</th>
+                      <th>ตัวอย่าง</th>
+                      <th>ครั้ง</th>
+                      <th>ร้อยละ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedSavedFrequency4Digit.map((item, idx) => (
+                      <tr key={idx}>
+                        <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
+                        <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
+                        <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+                          {(item[2] as string[]).join(', ')}
+                        </td>
+                        <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
+                        <td className="percentage" style={{ textAlign: 'center' }}>
+                          {((item[1] / totalSavedEntries4Digit) * 100).toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            )}
+
+            {analysisTab === 3 && sortedSavedFrequency3Digit.length === 0 && (
+              <div className="empty-state">ยังไม่มีข้อมูล 3 ตัว</div>
+            )}
+
+            {analysisTab === 4 && sortedSavedFrequency4Digit.length === 0 && (
+              <div className="empty-state">ยังไม่มีข้อมูล 4 ตัว</div>
+            )}
+
+            {/* {sortedSavedFrequency.length > 0 && (
+              <>
                 <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
                   🏆 Top 10 เลขที่ออกบ่อยสุดจากบันทึก (นับเลขกลับเป็นเลขเดียวกัน)
                 </h3>
@@ -491,7 +641,7 @@ export default function Home() {
                   })}
                 </div>
               </>
-            )}
+            )} */}
           </div>
 
           <div className="card full-width">
@@ -502,46 +652,120 @@ export default function Home() {
                   <tr>
                     <th style={{ textAlign: 'center' }}>ลำดับ</th>
                     <th style={{ textAlign: 'center' }}>เลข</th>
+                    <th style={{ textAlign: 'center' }}>จำนวนตัว</th>
                     <th style={{ textAlign: 'center' }}>ประเภท</th>
                     <th style={{ textAlign: 'center' }}>วันที่และเวลา</th>
                     <th style={{ textAlign: 'center' }}>ลบ</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {lotteryEntries.map((entry, idx) => (
-                    <tr key={entry.id}>
-                      <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
-                      <td className="number" style={{ textAlign: 'center', fontSize: '1.2rem' }}>
-                        {entry.number}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        {getLotteryTypeLabel(entry.type)}
-                      </td>
-                      <td style={{ textAlign: 'center', color: '#666' }}>
-                        {entry.date}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <button
-                          onClick={() => deleteLotteryEntry(entry.id)}
-                          style={{
-                            background: '#e74c3c',
-                            color: 'white',
-                            border: 'none',
-                            padding: '6px 12px',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '0.9rem',
-                            fontWeight: '600',
-                          }}
-                        >
-                          ลบ
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {lotteryEntries
+                    .slice((entriesPage - 1) * ENTRIES_PER_PAGE, entriesPage * ENTRIES_PER_PAGE)
+                    .map((entry, idx) => (
+                      <tr key={entry.id}>
+                        <td style={{ textAlign: 'center', fontWeight: '600' }}>
+                          #{(entriesPage - 1) * ENTRIES_PER_PAGE + idx + 1}
+                        </td>
+                        <td className="number" style={{ textAlign: 'center', fontSize: '1.2rem' }}>
+                          {entry.number}
+                        </td>
+                        <td style={{ textAlign: 'center', fontWeight: '600', color: '#3498db' }}>
+                          {entry.digitLength} ตัว
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {getLotteryTypeLabel(entry.type)}
+                        </td>
+                        <td style={{ textAlign: 'center', color: '#666' }}>
+                          {entry.date}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            onClick={() => deleteLotteryEntry(entry.id)}
+                            style={{
+                              background: '#e74c3c',
+                              color: 'white',
+                              border: 'none',
+                              padding: '6px 12px',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              fontSize: '0.9rem',
+                              fontWeight: '600',
+                            }}
+                          >
+                            ลบ
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {lotteryEntries.length > ENTRIES_PER_PAGE && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: '10px',
+                  marginTop: '20px',
+                  paddingTop: '15px',
+                  borderTop: '1px solid #ddd',
+                }}
+              >
+                <button
+                  onClick={() => setEntriesPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={entriesPage === 1}
+                  style={{
+                    padding: '8px 16px',
+                    background: entriesPage === 1 ? '#ccc' : '#3498db',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: entriesPage === 1 ? 'not-allowed' : 'pointer',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                  }}
+                >
+                  ← ก่อนหน้า
+                </button>
+
+                <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                  <span style={{ fontWeight: '600', color: '#333' }}>
+                    หน้า {entriesPage} จาก{' '}
+                    {Math.ceil(lotteryEntries.length / ENTRIES_PER_PAGE)}
+                  </span>
+                </div>
+
+                <button
+                  onClick={() =>
+                    setEntriesPage((prev) =>
+                      Math.min(prev + 1, Math.ceil(lotteryEntries.length / ENTRIES_PER_PAGE))
+                    )
+                  }
+                  disabled={entriesPage === Math.ceil(lotteryEntries.length / ENTRIES_PER_PAGE)}
+                  style={{
+                    padding: '8px 16px',
+                    background:
+                      entriesPage === Math.ceil(lotteryEntries.length / ENTRIES_PER_PAGE)
+                        ? '#ccc'
+                        : '#3498db',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor:
+                      entriesPage === Math.ceil(lotteryEntries.length / ENTRIES_PER_PAGE)
+                        ? 'not-allowed'
+                        : 'pointer',
+                    fontSize: '0.9rem',
+                    fontWeight: '600',
+                  }}
+                >
+                  ถัดไป →
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}
