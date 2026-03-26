@@ -194,16 +194,29 @@ export default function Home() {
 
   const totalNumbers = allNumbers.length
 
-  const analyzeSavedEntries = (): { [key: string]: number } => {
-    const entryFrequency: { [key: string]: number } = {}
+  const getNormalizedNumber = (num: string): string => {
+    const digits = num.split('').sort().join('')
+    return digits
+  }
+
+  const analyzeSavedEntries = (): { [key: string]: { count: number; examples: string[] } } => {
+    const entryFrequency: { [key: string]: { count: number; examples: string[] } } = {}
     lotteryEntries.forEach((entry) => {
-      entryFrequency[entry.number] = (entryFrequency[entry.number] || 0) + 1
+      const normalized = getNormalizedNumber(entry.number)
+      if (!entryFrequency[normalized]) {
+        entryFrequency[normalized] = { count: 0, examples: [] }
+      }
+      entryFrequency[normalized].count += 1
+      if (!entryFrequency[normalized].examples.includes(entry.number)) {
+        entryFrequency[normalized].examples.push(entry.number)
+      }
     })
     return entryFrequency
   }
 
   const savedEntryFrequency = analyzeSavedEntries()
   const sortedSavedFrequency = Object.entries(savedEntryFrequency)
+    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
@@ -387,13 +400,14 @@ export default function Home() {
                 </div>
 
                 <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
-                  🏆 Top 10 เลขที่ออกบ่อยสุดจากบันทึก
+                  🏆 Top 10 เลขที่ออกบ่อยสุดจากบันทึก (นับเลขกลับเป็นเลขเดียวกัน)
                 </h3>
                 <table className="frequency-table">
                   <thead>
                     <tr>
                       <th>อันดับ</th>
-                      <th>เลข</th>
+                      <th>เลขกลับ</th>
+                      <th>ตัวอย่าง</th>
                       <th>ครั้ง</th>
                       <th>ร้อยละ</th>
                     </tr>
@@ -402,9 +416,12 @@ export default function Home() {
                     {sortedSavedFrequency.map((item, idx) => (
                       <tr key={idx}>
                         <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
-                        <td className="number">{item[0]}</td>
-                        <td className="count">{item[1]}</td>
-                        <td className="percentage">
+                        <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
+                        <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+                          {(item[2] as string[]).join(', ')}
+                        </td>
+                        <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
+                        <td className="percentage" style={{ textAlign: 'center' }}>
                           {((item[1] / totalSavedEntries) * 100).toFixed(1)}%
                         </td>
                       </tr>
