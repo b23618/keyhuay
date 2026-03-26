@@ -6,12 +6,6 @@ interface FrequencyEntry {
   [key: string]: number
 }
 
-interface SavedData {
-  allNumbers: string[]
-  frequency: FrequencyEntry
-  timestamp: string
-}
-
 interface LotteryEntry {
   id: string
   number: string
@@ -25,50 +19,31 @@ export default function Home() {
   const [reversedNumbers, setReversedNumbers] = useState<string[]>([])
   const [allNumbers, setAllNumbers] = useState<string[]>([])
   const [frequency, setFrequency] = useState<FrequencyEntry>({})
-  const [isLoaded, setIsLoaded] = useState<boolean>(false)
   const [lotteryType, setLotteryType] = useState<'thai' | 'hanoi'>('thai')
   const [lotteryEntries, setLotteryEntries] = useState<LotteryEntry[]>([])
 
   useEffect(() => {
-    const savedData = localStorage.getItem('keyhuayData')
-    if (savedData) {
+    const fetchLotteryEntries = async () => {
       try {
-        const data: SavedData = JSON.parse(savedData)
-        setAllNumbers(data.allNumbers)
-        setFrequency(data.frequency)
-      } catch (error) {
-        console.error('Error loading data:', error)
-      }
-    }
-
-    const savedEntries = localStorage.getItem('lotteryEntries')
-    if (savedEntries) {
-      try {
-        const entries: LotteryEntry[] = JSON.parse(savedEntries)
+        console.log('Fetching lottery entries from database...')
+        const response = await fetch('/api/lottery')
+        if (!response.ok) {
+          throw new Error('Failed to fetch entries')
+        }
+        const entries: LotteryEntry[] = await response.json()
+        console.log('Fetched entries:', entries)
         setLotteryEntries(entries)
       } catch (error) {
-        console.error('Error loading entries:', error)
+        console.error('Error fetching entries from database:', error)
       }
     }
-    setIsLoaded(true)
+
+    localStorage.clear()
+    console.log('Cleared localStorage')
+    
+    fetchLotteryEntries()
   }, [])
 
-  useEffect(() => {
-    if (isLoaded && (allNumbers.length > 0 || Object.keys(frequency).length > 0)) {
-      const dataToSave: SavedData = {
-        allNumbers,
-        frequency,
-        timestamp: new Date().toISOString(),
-      }
-      localStorage.setItem('keyhuayData', JSON.stringify(dataToSave))
-    }
-  }, [allNumbers, frequency, isLoaded])
-
-  useEffect(() => {
-    if (isLoaded && lotteryEntries.length > 0) {
-      localStorage.setItem('lotteryEntries', JSON.stringify(lotteryEntries))
-    }
-  }, [lotteryEntries, isLoaded])
 
   const generateReversals = (num: string): void => {
     if (num.length !== 4 || !/^\d{4}$/.test(num)) {
@@ -122,7 +97,6 @@ export default function Home() {
     setReversedNumbers([])
     setAllNumbers([])
     setFrequency({})
-    localStorage.removeItem('keyhuayData')
   }
 
   const saveLotteryEntry = async (): Promise<void> => {
