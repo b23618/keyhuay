@@ -294,8 +294,8 @@ export default function Home() {
   return (
     <div className="container">
       <div className="header">
-        <h1>🎰 Keyhuay - ระบบคีย์หวย 4 ตัว</h1>
-        <p>กรอกเลข 4 ตัว แล้วกลับเลขได้ + วิเคราะห์เลขที่ออกบ่อยสุด</p>
+        <h1>🎰 Keyhuay - ระบบคีย์หวย</h1>
+        <p>กรอกเลขแล้ววิเคราะห์เลขที่ออกบ่อยสุด</p>
       </div>
 
       <div className="main-grid">
