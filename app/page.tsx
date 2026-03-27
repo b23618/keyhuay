@@ -32,6 +32,7 @@ export default function Home() {
   const [digitLength, setDigitLength] = useState<3 | 4>(4)
   const [analysisTab, setAnalysisTab] = useState<3 | 4>(4)
   const [analysisTypeTab, setAnalysisTypeTab] = useState<'thai' | 'hanoi'>('thai')
+  const [analysisDateFilter, setAnalysisDateFilter] = useState<string>('all')
   const [entriesPage, setEntriesPage] = useState<number>(1)
   const ENTRIES_PER_PAGE = 50
 
@@ -224,7 +225,7 @@ export default function Home() {
     return digits
   }
 
-  const analyzeSavedEntries = (filterByDigitLength?: 3 | 4, filterByType?: 'thai' | 'hanoi'): { [key: string]: { count: number; examples: string[] } } => {
+  const analyzeSavedEntries = (filterByDigitLength?: 3 | 4, filterByType?: 'thai' | 'hanoi', filterByDate?: string): { [key: string]: { count: number; examples: string[] } } => {
     const entryFrequency: { [key: string]: { count: number; examples: string[] } } = {}
     lotteryEntries.forEach((entry) => {
       if (filterByDigitLength && entry.digitLength !== filterByDigitLength) {
@@ -232,6 +233,12 @@ export default function Home() {
       }
       if (filterByType && entry.type !== filterByType) {
         return
+      }
+      if (filterByDate && filterByDate !== 'all') {
+        const entryDate = entry.date.split(' ')[0]
+        if (entryDate !== filterByDate) {
+          return
+        }
       }
       const normalized = getNormalizedNumber(entry.number)
       if (!entryFrequency[normalized]) {
@@ -246,50 +253,58 @@ export default function Home() {
   }
 
   // 3-digit analysis
-  const savedEntryFrequency3Digit = analyzeSavedEntries(3)
+  const savedEntryFrequency3Digit = analyzeSavedEntries(3, undefined, analysisDateFilter)
   const sortedSavedFrequency3Digit = Object.entries(savedEntryFrequency3Digit)
     .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
-  const savedEntryFrequency3DigitThai = analyzeSavedEntries(3, 'thai')
+  const savedEntryFrequency3DigitThai = analyzeSavedEntries(3, 'thai', analysisDateFilter)
   const sortedSavedFrequency3DigitThai = Object.entries(savedEntryFrequency3DigitThai)
     .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
-  const savedEntryFrequency3DigitHanoi = analyzeSavedEntries(3, 'hanoi')
+  const savedEntryFrequency3DigitHanoi = analyzeSavedEntries(3, 'hanoi', analysisDateFilter)
   const sortedSavedFrequency3DigitHanoi = Object.entries(savedEntryFrequency3DigitHanoi)
     .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
   // 4-digit analysis
-  const savedEntryFrequency4Digit = analyzeSavedEntries(4)
+  const savedEntryFrequency4Digit = analyzeSavedEntries(4, undefined, analysisDateFilter)
   const sortedSavedFrequency4Digit = Object.entries(savedEntryFrequency4Digit)
     .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
-  const savedEntryFrequency4DigitThai = analyzeSavedEntries(4, 'thai')
+  const savedEntryFrequency4DigitThai = analyzeSavedEntries(4, 'thai', analysisDateFilter)
   const sortedSavedFrequency4DigitThai = Object.entries(savedEntryFrequency4DigitThai)
     .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
-  const savedEntryFrequency4DigitHanoi = analyzeSavedEntries(4, 'hanoi')
+  const savedEntryFrequency4DigitHanoi = analyzeSavedEntries(4, 'hanoi', analysisDateFilter)
   const sortedSavedFrequency4DigitHanoi = Object.entries(savedEntryFrequency4DigitHanoi)
     .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
+  // Extract unique dates from lottery entries
+  const uniqueDates = Array.from(new Set(lotteryEntries.map((e) => e.date.split(' ')[0]))).sort().reverse()
+
+  // Filter entries by date if selected
+  const dateFilteredEntries = analysisDateFilter === 'all' 
+    ? lotteryEntries 
+    : lotteryEntries.filter((e) => e.date.split(' ')[0] === analysisDateFilter)
+
   // Totals
-  const totalSavedEntries3Digit = lotteryEntries.filter((e) => e.digitLength === 3).length
-  const totalSavedEntries4Digit = lotteryEntries.filter((e) => e.digitLength === 4).length
-  const totalSavedEntries3DigitThai = lotteryEntries.filter((e) => e.digitLength === 3 && e.type === 'thai').length
-  const totalSavedEntries3DigitHanoi = lotteryEntries.filter((e) => e.digitLength === 3 && e.type === 'hanoi').length
-  const totalSavedEntries4DigitThai = lotteryEntries.filter((e) => e.digitLength === 4 && e.type === 'thai').length
-  const totalSavedEntries4DigitHanoi = lotteryEntries.filter((e) => e.digitLength === 4 && e.type === 'hanoi').length
+  const totalSavedEntries3Digit = dateFilteredEntries.filter((e) => e.digitLength === 3).length
+  const totalSavedEntries4Digit = dateFilteredEntries.filter((e) => e.digitLength === 4).length
+  const totalSavedEntries3DigitThai = dateFilteredEntries.filter((e) => e.digitLength === 3 && e.type === 'thai').length
+  const totalSavedEntries3DigitHanoi = dateFilteredEntries.filter((e) => e.digitLength === 3 && e.type === 'hanoi').length
+  const totalSavedEntries4DigitThai = dateFilteredEntries.filter((e) => e.digitLength === 4 && e.type === 'thai').length
+  const totalSavedEntries4DigitHanoi = dateFilteredEntries.filter((e) => e.digitLength === 4 && e.type === 'hanoi').length
 
   return (
     <div className="container">
@@ -470,6 +485,35 @@ export default function Home() {
           <div className="card full-width">
             <h2>📊 วิเคราะห์เลขที่บันทึก - เลขที่ออกบ่อยสุด</h2>
             
+            {/* Date filter */}
+            <div style={{ marginBottom: '20px' }}>
+              <label htmlFor="date-filter" style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
+                📅 กรองตามวันที่
+              </label>
+              <select
+                id="date-filter"
+                value={analysisDateFilter}
+                onChange={(e) => setAnalysisDateFilter(e.target.value)}
+                style={{
+                  width: '100%',
+                  maxWidth: '300px',
+                  padding: '10px',
+                  fontSize: '1rem',
+                  border: '2px solid #3498db',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  background: 'white',
+                }}
+              >
+                <option value="all">ทั้งหมด</option>
+                {uniqueDates.map((date) => (
+                  <option key={date} value={date}>
+                    {date}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Tabs for digit length */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '2px solid #ddd' }}>
               <button
