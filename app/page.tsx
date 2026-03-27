@@ -39,9 +39,9 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState<boolean>(true)
   const [formulaAnalysis, setFormulaAnalysis] = useState<{
-    thai: Array<{ number: string; count: number }>
-    hanoi: Array<{ number: string; count: number }>
-    yeekee: Array<{ number: string; count: number }>
+    thai: Array<{ number: string; count: number; examples: string[] }>
+    hanoi: Array<{ number: string; count: number; examples: string[] }>
+    yeekee: Array<{ number: string; count: number; examples: string[] }>
   } | null>(null)
   const ENTRIES_PER_PAGE = 50
 
@@ -215,38 +215,52 @@ export default function Home() {
     })
     setFrequency(newFrequency)
 
-    // Analyze generated numbers against saved entries with frequency count
-    const savedNumbers4Digit = allLotteryEntries.filter(e => e.digitLength === 4)
-    const thaiFreq: { [key: string]: number } = {}
-    const hanoiFreq: { [key: string]: number } = {}
-    const yeekeeFreq: { [key: string]: number } = {}
+    // Analyze generated numbers against saved entries
+    // Use data from Top 10 analysis (analyzeSavedEntries) for consistent counting
+    const savedFreqThai = analyzeSavedEntries(4, 'thai', analysisDateFilter)
+    const savedFreqHanoi = analyzeSavedEntries(4, 'hanoi', analysisDateFilter)
+    const savedFreqYeekee = analyzeSavedEntries(4, 'yeekee', analysisDateFilter)
 
+    const thaiMatches: Array<{ number: string; count: number; examples: string[] }> = []
+    const hanoiMatches: Array<{ number: string; count: number; examples: string[] }> = []
+    const yeekeeMatches: Array<{ number: string; count: number; examples: string[] }> = []
+
+    // Check which generated numbers exist in saved entries
     combinationArray.forEach(generatedNum => {
-      savedNumbers4Digit.forEach(entry => {
-        if (entry.number === generatedNum) {
-          if (entry.type === 'thai') {
-            thaiFreq[generatedNum] = (thaiFreq[generatedNum] || 0) + 1
-          } else if (entry.type === 'hanoi') {
-            hanoiFreq[generatedNum] = (hanoiFreq[generatedNum] || 0) + 1
-          } else if (entry.type === 'yeekee') {
-            yeekeeFreq[generatedNum] = (yeekeeFreq[generatedNum] || 0) + 1
-          }
-        }
-      })
+      const normalized = getNormalizedNumber(generatedNum)
+      
+      // Check Thai
+      if (savedFreqThai[normalized] && !thaiMatches.find(m => m.examples.join(', ') === savedFreqThai[normalized].examples.join(', '))) {
+        thaiMatches.push({
+          number: savedFreqThai[normalized].examples.join(', '),
+          count: savedFreqThai[normalized].count,
+          examples: savedFreqThai[normalized].examples
+        })
+      }
+      
+      // Check Hanoi
+      if (savedFreqHanoi[normalized] && !hanoiMatches.find(m => m.examples.join(', ') === savedFreqHanoi[normalized].examples.join(', '))) {
+        hanoiMatches.push({
+          number: savedFreqHanoi[normalized].examples.join(', '),
+          count: savedFreqHanoi[normalized].count,
+          examples: savedFreqHanoi[normalized].examples
+        })
+      }
+      
+      // Check Yeekee
+      if (savedFreqYeekee[normalized] && !yeekeeMatches.find(m => m.examples.join(', ') === savedFreqYeekee[normalized].examples.join(', '))) {
+        yeekeeMatches.push({
+          number: savedFreqYeekee[normalized].examples.join(', '),
+          count: savedFreqYeekee[normalized].count,
+          examples: savedFreqYeekee[normalized].examples
+        })
+      }
     })
 
-    // Convert to array and sort by frequency (descending)
-    const thaiMatches = Object.entries(thaiFreq)
-      .map(([number, count]) => ({ number, count }))
-      .sort((a, b) => b.count - a.count)
-    
-    const hanoiMatches = Object.entries(hanoiFreq)
-      .map(([number, count]) => ({ number, count }))
-      .sort((a, b) => b.count - a.count)
-    
-    const yeekeeMatches = Object.entries(yeekeeFreq)
-      .map(([number, count]) => ({ number, count }))
-      .sort((a, b) => b.count - a.count)
+    // Sort by frequency (descending)
+    thaiMatches.sort((a, b) => b.count - a.count)
+    hanoiMatches.sort((a, b) => b.count - a.count)
+    yeekeeMatches.sort((a, b) => b.count - a.count)
 
     setFormulaAnalysis({
       thai: thaiMatches,
@@ -362,7 +376,7 @@ export default function Home() {
   }
 
   const analyzeSavedEntries = (filterByDigitLength?: 3 | 4, filterByType?: 'thai' | 'hanoi' | 'yeekee', filterByDate?: string): { [key: string]: { count: number; examples: string[] } } => {
-    const entryFrequency: { [key: string]: { count: number; examples: string[] } } = {}
+    const entryFrequency: { [key: string]: { idSet: Set<string>; examples: string[] } } = {}
     allLotteryEntries.forEach((entry) => {
       if (filterByDigitLength && entry.digitLength !== filterByDigitLength) {
         return
@@ -378,14 +392,23 @@ export default function Home() {
       }
       const normalized = getNormalizedNumber(entry.number)
       if (!entryFrequency[normalized]) {
-        entryFrequency[normalized] = { count: 0, examples: [] }
+        entryFrequency[normalized] = { idSet: new Set(), examples: [] }
       }
-      entryFrequency[normalized].count += 1
+      entryFrequency[normalized].idSet.add(entry.id)
       if (!entryFrequency[normalized].examples.includes(entry.number)) {
         entryFrequency[normalized].examples.push(entry.number)
       }
     })
-    return entryFrequency
+    
+    // Convert Set to count
+    const result: { [key: string]: { count: number; examples: string[] } } = {}
+    Object.entries(entryFrequency).forEach(([normalized, data]) => {
+      result[normalized] = {
+        count: data.idSet.size,
+        examples: data.examples
+      }
+    })
+    return result
   }
 
   // 3-digit analysis
