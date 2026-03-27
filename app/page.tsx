@@ -673,68 +673,6 @@ export default function Home() {
             </div>
           )}
         </div>
-
-        <div className="card">
-          <h2>📊 สถิติการออก</h2>
-          {totalNumbers > 0 && (
-            <>
-              <div className="stat-grid">
-                <div className="stat-box">
-                  <div className="number">{totalNumbers}</div>
-                  <div className="label">ทั้งหมด</div>
-                </div>
-                <div className="stat-box">
-                  <div className="number">{Object.keys(frequency).length}</div>
-                  <div className="label">เลขที่ต่างกัน</div>
-                </div>
-                <div className="stat-box">
-                  <div className="number">{sortedFrequency[0]?.[1] || 0}</div>
-                  <div className="label">ออกบ่อยสุด</div>
-                </div>
-                <div className="stat-box">
-                  <div className="number">{sortedFrequency[0]?.[0] || '-'}</div>
-                  <div className="label">เลขนั้น</div>
-                </div>
-              </div>
-
-              {sortedFrequency.length > 0 && (
-                <>
-                  <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
-                    🏆 Top 10 เลขที่ออกบ่อยสุด
-                  </h3>
-                  <table className="frequency-table">
-                    <thead>
-                      <tr>
-                        <th>อันดับ</th>
-                        <th>เลข</th>
-                        <th>ครั้ง</th>
-                        <th>ร้อยละ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedFrequency.map((item, idx) => (
-                        <tr key={idx}>
-                          <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
-                          <td className="number">{item[0]}</td>
-                          <td className="count">{item[1]}</td>
-                          <td className="percentage">
-                            {((item[1] / totalNumbers) * 100).toFixed(1)}%
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </>
-              )}
-            </>
-          )}
-
-          {totalNumbers === 0 && (
-            <div className="empty-state">
-              ยังไม่มีข้อมูล กรุณากรอกเลข 4 ตัวเพื่อเริ่มต้น
-            </div>
-          )}
-        </div>
       </div>
 
       {totalNumbers > 0 && (
