@@ -150,6 +150,70 @@ export default function Home() {
     }
   }
 
+  const generate4DigitFrom7 = (num: string): void => {
+    if (num.length !== 7 || !/^\d+$/.test(num)) {
+      showToast('กรุณากรอกเลข 7 หลัก', 'warning')
+      return
+    }
+
+    const digits = num.split('')
+    const combinations = new Set<string>()
+
+    // Generate all 4-digit combinations from 7 digits
+    const getCombinations = (arr: string[], size: number): string[][] => {
+      if (size === 0) return [[]]
+      if (arr.length === 0) return []
+      
+      const result: string[][] = []
+      const first = arr[0]
+      const rest = arr.slice(1)
+      
+      // Include first element
+      const withFirst = getCombinations(rest, size - 1)
+      withFirst.forEach(combo => result.push([first, ...combo]))
+      
+      // Exclude first element
+      const withoutFirst = getCombinations(rest, size)
+      withoutFirst.forEach(combo => result.push(combo))
+      
+      return result
+    }
+
+    // Generate permutations for each combination
+    const permute = (arr: string[], prefix: string = ''): void => {
+      if (arr.length === 0) {
+        combinations.add(prefix)
+        return
+      }
+
+      for (let i = 0; i < arr.length; i++) {
+        const current = arr[i]
+        const remaining = arr.slice(0, i).concat(arr.slice(i + 1))
+        permute(remaining, prefix + current)
+      }
+    }
+
+    const combos = getCombinations(digits, 4)
+    combos.forEach(combo => {
+      permute(combo)
+    })
+
+    const combinationArray = Array.from(combinations).sort()
+    setReversedNumbers(combinationArray)
+
+    const newAllNumbers = [...allNumbers, ...combinationArray]
+    setAllNumbers(newAllNumbers)
+
+    const newFrequency: FrequencyEntry = { ...frequency }
+    combinationArray.forEach((number) => {
+      newFrequency[number] = (newFrequency[number] || 0) + 1
+    })
+    setFrequency(newFrequency)
+
+    setInputNumber('')
+    showToast(`✅ สร้างเลข 4 ตัวได้ ${combinationArray.length} เลข`, 'success')
+  }
+
   const clearAll = (): void => {
     setInputNumber('')
     setReversedNumbers([])
@@ -426,7 +490,7 @@ export default function Home() {
               <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
                 ✅ เลขที่กลับได้ ({reversedNumbers.length} ตัว)
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', maxHeight: '300px', overflowY: 'auto' }}>
                 {reversedNumbers.map((num, idx) => (
                   <div key={idx} className="result-item">
                     <span>{num}</span>
@@ -435,6 +499,42 @@ export default function Home() {
               </div>
             </div>
           )}
+        </div>
+
+        <div className="card formula-card">
+          <h2>🎯 สูตรจับเลข 4 ตัว</h2>
+          <p style={{ color: '#555', marginBottom: '15px', fontSize: '0.9rem', fontWeight: '500' }}>
+            กรอกเลข 7 หลัก เพื่อสร้างเลข 4 ตัวทั้งหมดที่เป็นไปได้
+          </p>
+          <div className="input-group">
+            <label htmlFor="seven-digit">เลข 7 หลัก (เช่น 0125679)</label>
+            <input
+              id="seven-digit"
+              type="text"
+              inputMode="numeric"
+              maxLength={7}
+              value={inputNumber}
+              onChange={(e) => setInputNumber(e.target.value.replace(/\D/g, ''))}
+              placeholder="0125679"
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '2px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '1rem',
+              }}
+            />
+          </div>
+          <button 
+            className="button" 
+            style={{ marginTop: '10px', background: '#9b59b6', width: '100%' }} 
+            onClick={() => generate4DigitFrom7(inputNumber)}
+          >
+            🎲 จับเลข 4 ตัว
+          </button>
+          <div style={{ marginTop: '10px', fontSize: '0.85rem', color: '#666', textAlign: 'center' }}>
+            จะได้เลข 4 ตัวประมาณ 840 เลข
+          </div>
         </div>
 
         <div className="card">
