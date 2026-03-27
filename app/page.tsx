@@ -9,7 +9,7 @@ interface FrequencyEntry {
 interface LotteryEntry {
   id: string
   number: string
-  type: 'thai' | 'hanoi'
+  type: 'thai' | 'hanoi' | 'yeekee'
   digitLength: number
   date: string
   timestamp: number
@@ -26,14 +26,18 @@ export default function Home() {
   const [reversedNumbers, setReversedNumbers] = useState<string[]>([])
   const [allNumbers, setAllNumbers] = useState<string[]>([])
   const [frequency, setFrequency] = useState<FrequencyEntry>({})
-  const [lotteryType, setLotteryType] = useState<'thai' | 'hanoi'>('thai')
+  const [lotteryType, setLotteryType] = useState<'thai' | 'hanoi' | 'yeekee'>('thai')
   const [lotteryEntries, setLotteryEntries] = useState<LotteryEntry[]>([])
+  const [allLotteryEntries, setAllLotteryEntries] = useState<LotteryEntry[]>([])
   const [toasts, setToasts] = useState<Toast[]>([])
   const [digitLength, setDigitLength] = useState<3 | 4>(4)
   const [analysisTab, setAnalysisTab] = useState<3 | 4>(4)
-  const [analysisTypeTab, setAnalysisTypeTab] = useState<'thai' | 'hanoi'>('thai')
+  const [analysisTypeTab, setAnalysisTypeTab] = useState<'thai' | 'hanoi' | 'yeekee'>('thai')
   const [analysisDateFilter, setAnalysisDateFilter] = useState<string>('all')
   const [entriesPage, setEntriesPage] = useState<number>(1)
+  const [totalEntries, setTotalEntries] = useState<number>(0)
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState<boolean>(true)
   const ENTRIES_PER_PAGE = 50
 
   const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info'): void => {
@@ -46,13 +50,20 @@ export default function Home() {
   }
 
   useEffect(() => {
-    const fetchLotteryEntries = async () => {
+    const fetchLotteryEntries = async (page: number = 1) => {
+      setIsLoading(true)
       try {
-        const response = await fetch('/api/lottery')
+        const response = await fetch(`/api/lottery?page=${page}&limit=${ENTRIES_PER_PAGE}`)
         if (!response.ok) {
           throw new Error('Failed to fetch entries')
         }
-        const entries: LotteryEntry[] = await response.json()
+        const result = await response.json()
+        const entries: LotteryEntry[] = result.data || result
+        
+        // Save total count from pagination metadata
+        if (result.pagination) {
+          setTotalEntries(result.pagination.total)
+        }
         
         // Only update state if data has changed (smooth update, no flicker)
         setLotteryEntries((prevEntries) => {
@@ -63,21 +74,33 @@ export default function Home() {
         })
       } catch (error) {
         console.error('Error fetching entries from database:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    const fetchAllEntries = async () => {
+      setIsLoadingAnalysis(true)
+      try {
+        const response = await fetch(`/api/lottery?limit=10000`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch all entries')
+        }
+        const result = await response.json()
+        const entries: LotteryEntry[] = result.data || result
+        setAllLotteryEntries(entries)
+      } catch (error) {
+        console.error('Error fetching all entries:', error)
+      } finally {
+        setIsLoadingAnalysis(false)
       }
     }
 
     localStorage.clear()
     
-    fetchLotteryEntries()
-
-    // Real-time polling - fetch data every 3 seconds (smooth background updates)
-    const intervalId = setInterval(() => {
-      fetchLotteryEntries()
-    }, 5000)
-
-    // Cleanup interval on component unmount
-    return () => clearInterval(intervalId)
-  }, [])
+    fetchLotteryEntries(entriesPage)
+    fetchAllEntries()
+  }, [entriesPage])
 
 
   const generateReversals = (num: string): void => {
@@ -185,6 +208,7 @@ export default function Home() {
       }
 
       setLotteryEntries([newEntry, ...lotteryEntries])
+      setAllLotteryEntries([newEntry, ...allLotteryEntries])
       setInputNumber('')
       showToast('✅ บันทึกเลขสำเร็จ', 'success')
     } catch (error) {
@@ -204,14 +228,17 @@ export default function Home() {
       }
 
       setLotteryEntries(lotteryEntries.filter((entry) => entry.id !== id))
+      setAllLotteryEntries(allLotteryEntries.filter((entry) => entry.id !== id))
     } catch (error) {
       console.error('Error deleting entry:', error)
       showToast('❌ เกิดข้อผิดพลาดในการลบ', 'error')
     }
   }
 
-  const getLotteryTypeLabel = (type: 'thai' | 'hanoi'): string => {
-    return type === 'thai' ? '🇹🇭 ไทย' : '🇻🇳 ฮานอย'
+  const getLotteryTypeLabel = (type: 'thai' | 'hanoi' | 'yeekee'): string => {
+    if (type === 'thai') return '🇹🇭 ไทย'
+    if (type === 'hanoi') return '🇻🇳 ฮานอย'
+    return '🎲 ยีกี่'
   }
 
   const sortedFrequency = Object.entries(frequency)
@@ -225,9 +252,9 @@ export default function Home() {
     return digits
   }
 
-  const analyzeSavedEntries = (filterByDigitLength?: 3 | 4, filterByType?: 'thai' | 'hanoi', filterByDate?: string): { [key: string]: { count: number; examples: string[] } } => {
+  const analyzeSavedEntries = (filterByDigitLength?: 3 | 4, filterByType?: 'thai' | 'hanoi' | 'yeekee', filterByDate?: string): { [key: string]: { count: number; examples: string[] } } => {
     const entryFrequency: { [key: string]: { count: number; examples: string[] } } = {}
-    lotteryEntries.forEach((entry) => {
+    allLotteryEntries.forEach((entry) => {
       if (filterByDigitLength && entry.digitLength !== filterByDigitLength) {
         return
       }
@@ -271,6 +298,12 @@ export default function Home() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
+  const savedEntryFrequency3DigitYeekee = analyzeSavedEntries(3, 'yeekee', analysisDateFilter)
+  const sortedSavedFrequency3DigitYeekee = Object.entries(savedEntryFrequency3DigitYeekee)
+    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+
   // 4-digit analysis
   const savedEntryFrequency4Digit = analyzeSavedEntries(4, undefined, analysisDateFilter)
   const sortedSavedFrequency4Digit = Object.entries(savedEntryFrequency4Digit)
@@ -290,21 +323,29 @@ export default function Home() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
+  const savedEntryFrequency4DigitYeekee = analyzeSavedEntries(4, 'yeekee', analysisDateFilter)
+  const sortedSavedFrequency4DigitYeekee = Object.entries(savedEntryFrequency4DigitYeekee)
+    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+
   // Extract unique dates from lottery entries
-  const uniqueDates = Array.from(new Set(lotteryEntries.map((e) => e.date.split(' ')[0]))).sort().reverse()
+  const uniqueDates = Array.from(new Set(allLotteryEntries.map((e) => e.date.split(' ')[0]))).sort().reverse()
 
   // Filter entries by date if selected
   const dateFilteredEntries = analysisDateFilter === 'all' 
-    ? lotteryEntries 
-    : lotteryEntries.filter((e) => e.date.split(' ')[0] === analysisDateFilter)
+    ? allLotteryEntries 
+    : allLotteryEntries.filter((e) => e.date.split(' ')[0] === analysisDateFilter)
 
   // Totals
   const totalSavedEntries3Digit = dateFilteredEntries.filter((e) => e.digitLength === 3).length
   const totalSavedEntries4Digit = dateFilteredEntries.filter((e) => e.digitLength === 4).length
   const totalSavedEntries3DigitThai = dateFilteredEntries.filter((e) => e.digitLength === 3 && e.type === 'thai').length
   const totalSavedEntries3DigitHanoi = dateFilteredEntries.filter((e) => e.digitLength === 3 && e.type === 'hanoi').length
+  const totalSavedEntries3DigitYeekee = dateFilteredEntries.filter((e) => e.digitLength === 3 && e.type === 'yeekee').length
   const totalSavedEntries4DigitThai = dateFilteredEntries.filter((e) => e.digitLength === 4 && e.type === 'thai').length
   const totalSavedEntries4DigitHanoi = dateFilteredEntries.filter((e) => e.digitLength === 4 && e.type === 'hanoi').length
+  const totalSavedEntries4DigitYeekee = dateFilteredEntries.filter((e) => e.digitLength === 4 && e.type === 'yeekee').length
 
   return (
     <div className="container">
@@ -356,7 +397,7 @@ export default function Home() {
             <select
               id="lottery-type"
               value={lotteryType}
-              onChange={(e) => setLotteryType(e.target.value as 'thai' | 'hanoi')}
+              onChange={(e) => setLotteryType(e.target.value as 'thai' | 'hanoi' | 'yeekee')}
               style={{
                 width: '100%',
                 padding: '12px',
@@ -367,6 +408,7 @@ export default function Home() {
             >
               <option value="thai">🇹🇭 ไทย</option>
               <option value="hanoi">🇻🇳 ฮานอย</option>
+              <option value="yeekee">🎲 ยีกี่</option>
             </select>
           </div>
           {/* <button className="button" onClick={() => generateReversals(inputNumber)}>
@@ -485,36 +527,50 @@ export default function Home() {
           <div className="card full-width">
             <h2>📊 วิเคราะห์เลขที่บันทึก - เลขที่ออกบ่อยสุด</h2>
             
-            {/* Date filter */}
-            <div style={{ marginBottom: '20px' }}>
-              <label htmlFor="date-filter" style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
-                📅 กรองตามวันที่
-              </label>
-              <select
-                id="date-filter"
-                value={analysisDateFilter}
-                onChange={(e) => setAnalysisDateFilter(e.target.value)}
-                style={{
-                  width: '100%',
-                  maxWidth: '300px',
-                  padding: '10px',
-                  fontSize: '1rem',
-                  border: '2px solid #3498db',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  background: 'white',
-                }}
-              >
-                <option value="all">ทั้งหมด</option>
-                {uniqueDates.map((date) => (
-                  <option key={date} value={date}>
-                    {date}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {isLoadingAnalysis && (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '60px 20px', 
+                color: '#3498db',
+                fontSize: '1.1rem',
+                fontWeight: '600'
+              }}>
+                <div style={{ marginBottom: '10px' }}>⏳ กำลังโหลดข้อมูลสำหรับการวิเคราะห์...</div>
+              </div>
+            )}
 
-            {/* Tabs for digit length */}
+            {!isLoadingAnalysis && (
+              <>
+                {/* Date filter */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label htmlFor="date-filter" style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
+                    📅 กรองตามวันที่
+                  </label>
+                  <select
+                    id="date-filter"
+                    value={analysisDateFilter}
+                    onChange={(e) => setAnalysisDateFilter(e.target.value)}
+                    style={{
+                      width: '100%',
+                      maxWidth: '300px',
+                      padding: '10px',
+                      fontSize: '1rem',
+                      border: '2px solid #3498db',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      background: 'white',
+                    }}
+                  >
+                    <option value="all">ทั้งหมด</option>
+                    {uniqueDates.map((date) => (
+                      <option key={date} value={date}>
+                        {date}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Tabs for digit length */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '2px solid #ddd' }}>
               <button
                 onClick={() => setAnalysisTab(3)}
@@ -581,6 +637,21 @@ export default function Home() {
                     }}
                   >
                     🇻🇳 ฮานอย ({totalSavedEntries3DigitHanoi})
+                  </button>
+                  <button
+                    onClick={() => setAnalysisTypeTab('yeekee')}
+                    style={{
+                      padding: '8px 16px',
+                      background: analysisTypeTab === 'yeekee' ? '#9b59b6' : 'transparent',
+                      color: analysisTypeTab === 'yeekee' ? 'white' : '#333',
+                      border: 'none',
+                      borderBottom: analysisTypeTab === 'yeekee' ? '2px solid #9b59b6' : 'none',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: analysisTypeTab === 'yeekee' ? '600' : '500',
+                    }}
+                  >
+                    🎲 ยีกี่ ({totalSavedEntries3DigitYeekee})
                   </button>
                 </div>
 
@@ -690,12 +761,69 @@ export default function Home() {
                   </>
                 )}
 
+                {analysisTypeTab === 'yeekee' && sortedSavedFrequency3DigitYeekee.length > 0 && (
+                  <>
+                    <div className="stat-grid">
+                      <div className="stat-box">
+                        <div className="number">{totalSavedEntries3DigitYeekee}</div>
+                        <div className="label">ทั้งหมด</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{Object.keys(savedEntryFrequency3DigitYeekee).length}</div>
+                        <div className="label">เลขที่ต่างกัน</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{sortedSavedFrequency3DigitYeekee[0]?.[1] || 0}</div>
+                        <div className="label">ออกบ่อยสุด</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{sortedSavedFrequency3DigitYeekee[0]?.[0] || '-'}</div>
+                        <div className="label">เลขนั้น</div>
+                      </div>
+                    </div>
+
+                    <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
+                      🏆 Top 10 เลขที่ออกบ่อยสุดจากบันทึก (3 ตัว - ยีกี่)
+                    </h3>
+                    <table className="frequency-table">
+                      <thead>
+                        <tr>
+                          <th>อันดับ</th>
+                          <th>เลขกลับ</th>
+                          <th>ตัวอย่าง</th>
+                          <th>ครั้ง</th>
+                          <th>ร้อยละ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedSavedFrequency3DigitYeekee.map((item, idx) => (
+                          <tr key={idx}>
+                            <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
+                            <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
+                            <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+                              {(item[2] as string[]).join(', ')}
+                            </td>
+                            <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
+                            <td className="percentage" style={{ textAlign: 'center' }}>
+                              {((item[1] / totalSavedEntries3DigitYeekee) * 100).toFixed(1)}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+
                 {analysisTypeTab === 'thai' && sortedSavedFrequency3DigitThai.length === 0 && (
                   <div className="empty-state">ยังไม่มีข้อมูล 3 ตัว ไทย</div>
                 )}
 
                 {analysisTypeTab === 'hanoi' && sortedSavedFrequency3DigitHanoi.length === 0 && (
                   <div className="empty-state">ยังไม่มีข้อมูล 3 ตัว ฮานอย</div>
+                )}
+
+                {analysisTypeTab === 'yeekee' && sortedSavedFrequency3DigitYeekee.length === 0 && (
+                  <div className="empty-state">ยังไม่มีข้อมูล 3 ตัว ยีกี่</div>
                 )}
               </>
             )}
@@ -733,6 +861,21 @@ export default function Home() {
                     }}
                   >
                     🇻🇳 ฮานอย ({totalSavedEntries4DigitHanoi})
+                  </button>
+                  <button
+                    onClick={() => setAnalysisTypeTab('yeekee')}
+                    style={{
+                      padding: '8px 16px',
+                      background: analysisTypeTab === 'yeekee' ? '#9b59b6' : 'transparent',
+                      color: analysisTypeTab === 'yeekee' ? 'white' : '#333',
+                      border: 'none',
+                      borderBottom: analysisTypeTab === 'yeekee' ? '2px solid #9b59b6' : 'none',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: analysisTypeTab === 'yeekee' ? '600' : '500',
+                    }}
+                  >
+                    🎲 ยีกี่ ({totalSavedEntries4DigitYeekee})
                   </button>
                 </div>
 
@@ -842,12 +985,69 @@ export default function Home() {
                   </>
                 )}
 
+                {analysisTypeTab === 'yeekee' && sortedSavedFrequency4DigitYeekee.length > 0 && (
+                  <>
+                    <div className="stat-grid">
+                      <div className="stat-box">
+                        <div className="number">{totalSavedEntries4DigitYeekee}</div>
+                        <div className="label">ทั้งหมด</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{Object.keys(savedEntryFrequency4DigitYeekee).length}</div>
+                        <div className="label">เลขที่ต่างกัน</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{sortedSavedFrequency4DigitYeekee[0]?.[1] || 0}</div>
+                        <div className="label">ออกบ่อยสุด</div>
+                      </div>
+                      <div className="stat-box">
+                        <div className="number">{sortedSavedFrequency4DigitYeekee[0]?.[0] || '-'}</div>
+                        <div className="label">เลขนั้น</div>
+                      </div>
+                    </div>
+
+                    <h3 style={{ color: '#333', marginBottom: '15px', marginTop: '20px' }}>
+                      🏆 Top 10 เลขที่ออกบ่อยสุดจากบันทึก (4 ตัว - ยีกี่)
+                    </h3>
+                    <table className="frequency-table">
+                      <thead>
+                        <tr>
+                          <th>อันดับ</th>
+                          <th>เลขกลับ</th>
+                          <th>ตัวอย่าง</th>
+                          <th>ครั้ง</th>
+                          <th>ร้อยละ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedSavedFrequency4DigitYeekee.map((item, idx) => (
+                          <tr key={idx}>
+                            <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
+                            <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
+                            <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+                              {(item[2] as string[]).join(', ')}
+                            </td>
+                            <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
+                            <td className="percentage" style={{ textAlign: 'center' }}>
+                              {((item[1] / totalSavedEntries4DigitYeekee) * 100).toFixed(1)}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
+                )}
+
                 {analysisTypeTab === 'thai' && sortedSavedFrequency4DigitThai.length === 0 && (
                   <div className="empty-state">ยังไม่มีข้อมูล 4 ตัว ไทย</div>
                 )}
 
                 {analysisTypeTab === 'hanoi' && sortedSavedFrequency4DigitHanoi.length === 0 && (
                   <div className="empty-state">ยังไม่มีข้อมูล 4 ตัว ฮานอย</div>
+                )}
+
+                {analysisTypeTab === 'yeekee' && sortedSavedFrequency4DigitYeekee.length === 0 && (
+                  <div className="empty-state">ยังไม่มีข้อมูล 4 ตัว ยีกี่</div>
                 )}
               </>
             )}
@@ -859,26 +1059,40 @@ export default function Home() {
             {analysisTab === 4 && sortedSavedFrequency4Digit.length === 0 && (
               <div className="empty-state">ยังไม่มีข้อมูล 4 ตัว</div>
             )}
+              </>
+            )}
           </div>
 
           <div className="card full-width">
-            <h2>📋 บันทึกเลขที่บันทึก ({lotteryEntries.length} รายการ)</h2>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="frequency-table" style={{ width: '100%' }}>
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: 'center' }}>ลำดับ</th>
-                    <th style={{ textAlign: 'center' }}>เลข</th>
-                    <th style={{ textAlign: 'center' }}>จำนวนตัว</th>
-                    <th style={{ textAlign: 'center' }}>ประเภท</th>
-                    <th style={{ textAlign: 'center' }}>วันที่และเวลา</th>
-                    <th style={{ textAlign: 'center' }}>ลบ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lotteryEntries
-                    .slice((entriesPage - 1) * ENTRIES_PER_PAGE, entriesPage * ENTRIES_PER_PAGE)
-                    .map((entry, idx) => (
+            <h2>📋 บันทึกเลขที่บันทึก ({totalEntries} รายการ)</h2>
+            
+            {isLoading && (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '40px', 
+                color: '#3498db',
+                fontSize: '1.1rem',
+                fontWeight: '600'
+              }}>
+                <div style={{ marginBottom: '10px' }}>⏳ กำลังโหลดข้อมูล...</div>
+              </div>
+            )}
+            
+            {!isLoading && (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="frequency-table" style={{ width: '100%' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'center' }}>ลำดับ</th>
+                      <th style={{ textAlign: 'center' }}>เลข</th>
+                      <th style={{ textAlign: 'center' }}>จำนวนตัว</th>
+                      <th style={{ textAlign: 'center' }}>ประเภท</th>
+                      <th style={{ textAlign: 'center' }}>วันที่และเวลา</th>
+                      <th style={{ textAlign: 'center' }}>ลบ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lotteryEntries.map((entry, idx) => (
                       <tr key={entry.id}>
                         <td style={{ textAlign: 'center', fontWeight: '600' }}>
                           #{(entriesPage - 1) * ENTRIES_PER_PAGE + idx + 1}
@@ -917,9 +1131,10 @@ export default function Home() {
                 </tbody>
               </table>
             </div>
+            )}
 
             {/* Pagination Controls */}
-            {lotteryEntries.length > ENTRIES_PER_PAGE && (
+            {!isLoading && totalEntries > ENTRIES_PER_PAGE && (
               <div
                 style={{
                   display: 'flex',
@@ -951,28 +1166,28 @@ export default function Home() {
                 <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                   <span style={{ fontWeight: '600', color: '#333' }}>
                     หน้า {entriesPage} จาก{' '}
-                    {Math.ceil(lotteryEntries.length / ENTRIES_PER_PAGE)}
+                    {Math.ceil(totalEntries / ENTRIES_PER_PAGE)}
                   </span>
                 </div>
 
                 <button
                   onClick={() =>
                     setEntriesPage((prev) =>
-                      Math.min(prev + 1, Math.ceil(lotteryEntries.length / ENTRIES_PER_PAGE))
+                      Math.min(prev + 1, Math.ceil(totalEntries / ENTRIES_PER_PAGE))
                     )
                   }
-                  disabled={entriesPage === Math.ceil(lotteryEntries.length / ENTRIES_PER_PAGE)}
+                  disabled={entriesPage === Math.ceil(totalEntries / ENTRIES_PER_PAGE)}
                   style={{
                     padding: '8px 16px',
                     background:
-                      entriesPage === Math.ceil(lotteryEntries.length / ENTRIES_PER_PAGE)
+                      entriesPage === Math.ceil(totalEntries / ENTRIES_PER_PAGE)
                         ? '#ccc'
                         : '#3498db',
                     color: 'white',
                     border: 'none',
                     borderRadius: '4px',
                     cursor:
-                      entriesPage === Math.ceil(lotteryEntries.length / ENTRIES_PER_PAGE)
+                      entriesPage === Math.ceil(totalEntries / ENTRIES_PER_PAGE)
                         ? 'not-allowed'
                         : 'pointer',
                     fontSize: '0.9rem',
