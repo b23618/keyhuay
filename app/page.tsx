@@ -38,6 +38,11 @@ export default function Home() {
   const [totalEntries, setTotalEntries] = useState<number>(0)
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState<boolean>(true)
+  const [formulaAnalysis, setFormulaAnalysis] = useState<{
+    thai: Array<{ number: string; count: number }>
+    hanoi: Array<{ number: string; count: number }>
+    yeekee: Array<{ number: string; count: number }>
+  } | null>(null)
   const ENTRIES_PER_PAGE = 50
 
   const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info'): void => {
@@ -210,8 +215,48 @@ export default function Home() {
     })
     setFrequency(newFrequency)
 
+    // Analyze generated numbers against saved entries with frequency count
+    const savedNumbers4Digit = allLotteryEntries.filter(e => e.digitLength === 4)
+    const thaiFreq: { [key: string]: number } = {}
+    const hanoiFreq: { [key: string]: number } = {}
+    const yeekeeFreq: { [key: string]: number } = {}
+
+    combinationArray.forEach(generatedNum => {
+      savedNumbers4Digit.forEach(entry => {
+        if (entry.number === generatedNum) {
+          if (entry.type === 'thai') {
+            thaiFreq[generatedNum] = (thaiFreq[generatedNum] || 0) + 1
+          } else if (entry.type === 'hanoi') {
+            hanoiFreq[generatedNum] = (hanoiFreq[generatedNum] || 0) + 1
+          } else if (entry.type === 'yeekee') {
+            yeekeeFreq[generatedNum] = (yeekeeFreq[generatedNum] || 0) + 1
+          }
+        }
+      })
+    })
+
+    // Convert to array and sort by frequency (descending)
+    const thaiMatches = Object.entries(thaiFreq)
+      .map(([number, count]) => ({ number, count }))
+      .sort((a, b) => b.count - a.count)
+    
+    const hanoiMatches = Object.entries(hanoiFreq)
+      .map(([number, count]) => ({ number, count }))
+      .sort((a, b) => b.count - a.count)
+    
+    const yeekeeMatches = Object.entries(yeekeeFreq)
+      .map(([number, count]) => ({ number, count }))
+      .sort((a, b) => b.count - a.count)
+
+    setFormulaAnalysis({
+      thai: thaiMatches,
+      hanoi: hanoiMatches,
+      yeekee: yeekeeMatches
+    })
+
     setInputNumber('')
-    showToast(`✅ สร้างเลข 4 ตัวได้ ${combinationArray.length} เลข`, 'success')
+    const totalMatches = thaiMatches.length + hanoiMatches.length + yeekeeMatches.length
+    showToast(`✅ สร้างเลข ${combinationArray.length} เลข | พบตรงกับที่บันทึก ${totalMatches} เลข`, 'success')
   }
 
   const clearAll = (): void => {
@@ -535,6 +580,75 @@ export default function Home() {
           <div style={{ marginTop: '10px', fontSize: '0.85rem', color: '#666', textAlign: 'center' }}>
             จะได้เลข 4 ตัวประมาณ 840 เลข
           </div>
+
+          {formulaAnalysis && (
+            <div className="formula-analysis">
+              <h3>📊 ผลการวิเคราะห์กับเลขที่บันทึก</h3>
+              
+              {/* Thai matches */}
+              <div className="analysis-section">
+                <div className="analysis-header" style={{ color: '#27ae60' }}>
+                  🇹🇭 ไทย ({formulaAnalysis.thai.length} เลข)
+                </div>
+                {formulaAnalysis.thai.length > 0 ? (
+                  <div className="analysis-grid">
+                    {formulaAnalysis.thai.map((item, idx) => (
+                      <div key={idx} className="analysis-number" style={{ background: '#27ae60', position: 'relative' }}>
+                        <div>{item.number}</div>
+                        <div style={{ fontSize: '0.7rem', opacity: 0.9, marginTop: '2px' }}>
+                          ({item.count} ครั้ง)
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="analysis-empty">ไม่พบเลขที่ตรง</div>
+                )}
+              </div>
+
+              {/* Hanoi matches */}
+              <div className="analysis-section">
+                <div className="analysis-header" style={{ color: '#e74c3c' }}>
+                  🇻🇳 ฮานอย ({formulaAnalysis.hanoi.length} เลข)
+                </div>
+                {formulaAnalysis.hanoi.length > 0 ? (
+                  <div className="analysis-grid">
+                    {formulaAnalysis.hanoi.map((item, idx) => (
+                      <div key={idx} className="analysis-number" style={{ background: '#e74c3c', position: 'relative' }}>
+                        <div>{item.number}</div>
+                        <div style={{ fontSize: '0.7rem', opacity: 0.9, marginTop: '2px' }}>
+                          ({item.count} ครั้ง)
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="analysis-empty">ไม่พบเลขที่ตรง</div>
+                )}
+              </div>
+
+              {/* Yeekee matches */}
+              <div className="analysis-section">
+                <div className="analysis-header" style={{ color: '#9b59b6' }}>
+                  🎲 ยีกี่ ({formulaAnalysis.yeekee.length} เลข)
+                </div>
+                {formulaAnalysis.yeekee.length > 0 ? (
+                  <div className="analysis-grid">
+                    {formulaAnalysis.yeekee.map((item, idx) => (
+                      <div key={idx} className="analysis-number" style={{ background: '#9b59b6', position: 'relative' }}>
+                        <div>{item.number}</div>
+                        <div style={{ fontSize: '0.7rem', opacity: 0.9, marginTop: '2px' }}>
+                          ({item.count} ครั้ง)
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="analysis-empty">ไม่พบเลขที่ตรง</div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="card">
