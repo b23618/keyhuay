@@ -156,8 +156,8 @@ export default function Home() {
   }
 
   const generate4DigitFrom7 = (num: string): void => {
-    if (num.length !== 7 || !/^\d+$/.test(num)) {
-      showToast('กรุณากรอกเลข 7 หลัก', 'warning')
+    if ((num.length !== 5 && num.length !== 7) || !/^\d+$/.test(num)) {
+      showToast('กรุณากรอกเลข 5 หลัก หรือ 7 หลัก', 'warning')
       return
     }
 
@@ -572,18 +572,18 @@ export default function Home() {
         <div className="card formula-card">
           <h2>🎯 สูตรจับเลข 4 ตัว</h2>
           <p style={{ color: '#555', marginBottom: '15px', fontSize: '0.9rem', fontWeight: '500' }}>
-            กรอกเลข 7 หลัก เพื่อสร้างเลข 4 ตัวทั้งหมดที่เป็นไปได้
+            กรอกเลข 5 หลัก หรือ 7 หลัก เพื่อสร้างเลข 4 ตัวทั้งหมดที่เป็นไปได้
           </p>
           <div className="input-group">
-            <label htmlFor="seven-digit">เลข 7 หลัก (เช่น 0125679)</label>
+            <label htmlFor="five-digit">เลข 5 หลัก หรือ 7 หลัก (เช่น 01256 หรือ 0125679)</label>
             <input
-              id="seven-digit"
+              id="five-digit"
               type="text"
               inputMode="numeric"
               maxLength={7}
               value={inputNumber}
               onChange={(e) => setInputNumber(e.target.value.replace(/\D/g, ''))}
-              placeholder="0125679"
+              placeholder="01256 หรือ 0125679"
               style={{
                 width: '100%',
                 padding: '12px',
@@ -601,7 +601,7 @@ export default function Home() {
             🎲 จับเลข 4 ตัว
           </button>
           <div style={{ marginTop: '10px', fontSize: '0.85rem', color: '#666', textAlign: 'center' }}>
-            จะได้เลข 4 ตัวประมาณ 840 เลข
+            5 หลัก = 120 เลข | 7 หลัก = 840 เลข
           </div>
 
           {formulaAnalysis && (
