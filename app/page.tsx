@@ -377,7 +377,7 @@ export default function Home() {
       setLotteryEntries([newEntry, ...lotteryEntries])
       setAllLotteryEntries([newEntry, ...allLotteryEntries])
       setInputNumber('')
-      setYeekeeDate('')
+      // Don't reset yeekeeDate - keep it for next entry
       showToast('✅ บันทึกเลขสำเร็จ', 'success')
     } catch (error) {
       console.error('Error saving entry:', error)
