@@ -587,16 +587,67 @@ export default function Home() {
 
   // Helper functions for special number patterns
   const isDoubleNumber = (num: string): boolean => {
-    if (num.length !== 3) return false
     const digits = num.split('')
-    return digits[0] === digits[1] || digits[1] === digits[2] || digits[0] === digits[2]
+    if (num.length === 3) {
+      return digits[0] === digits[1] || digits[1] === digits[2] || digits[0] === digits[2]
+    } else if (num.length === 4) {
+      // For 4-digit: check if any 2 digits are the same
+      const digitSet = new Set(digits)
+      return digitSet.size < 4 // Has at least one duplicate
+    }
+    return false
   }
 
   const isSandwichNumber = (num: string): boolean => {
-    if (num.length !== 3) return false
     const digits = num.split('')
-    return digits[0] === digits[2]
+    if (num.length === 3) {
+      return digits[0] === digits[2]
+    } else if (num.length === 4) {
+      return digits[0] === digits[3]
+    }
+    return false
   }
+
+  // Filter and count special number patterns from saved entries
+  const doubleNumbers3Map: { [key: string]: number } = {}
+  const sandwichNumbers3Map: { [key: string]: number } = {}
+  const doubleNumbers4Map: { [key: string]: number } = {}
+  const sandwichNumbers4Map: { [key: string]: number } = {}
+  
+  dateFilteredEntries.forEach(e => {
+    if (e.digitLength === 3) {
+      if (isDoubleNumber(e.number)) {
+        doubleNumbers3Map[e.number] = (doubleNumbers3Map[e.number] || 0) + 1
+      }
+      if (isSandwichNumber(e.number)) {
+        sandwichNumbers3Map[e.number] = (sandwichNumbers3Map[e.number] || 0) + 1
+      }
+    } else if (e.digitLength === 4) {
+      if (isDoubleNumber(e.number)) {
+        doubleNumbers4Map[e.number] = (doubleNumbers4Map[e.number] || 0) + 1
+      }
+      if (isSandwichNumber(e.number)) {
+        sandwichNumbers4Map[e.number] = (sandwichNumbers4Map[e.number] || 0) + 1
+      }
+    }
+  })
+  
+  // Sort by frequency (most to least)
+  const doubleNumbers = Object.entries(doubleNumbers3Map)
+    .map(([number, count]) => ({ number, count }))
+    .sort((a, b) => b.count - a.count)
+  
+  const sandwichNumbers = Object.entries(sandwichNumbers3Map)
+    .map(([number, count]) => ({ number, count }))
+    .sort((a, b) => b.count - a.count)
+
+  const doubleNumbers4 = Object.entries(doubleNumbers4Map)
+    .map(([number, count]) => ({ number, count }))
+    .sort((a, b) => b.count - a.count)
+  
+  const sandwichNumbers4 = Object.entries(sandwichNumbers4Map)
+    .map(([number, count]) => ({ number, count }))
+    .sort((a, b) => b.count - a.count)
 
   // Totals
   const totalSavedEntries3Digit = dateFilteredEntries.filter((e) => e.digitLength === 3).length
@@ -1331,7 +1382,134 @@ export default function Home() {
                   <div className="empty-state">ยังไม่มีข้อมูล 3 ตัว ยีกี่</div>
                 )}
 
-                
+                {/* Special Number Patterns */}
+                {(doubleNumbers.length > 0 || sandwichNumbers.length > 0) && (
+                  <div style={{ marginTop: '30px' }}>
+                    <h3 style={{ color: '#333', marginBottom: '20px', fontSize: '1.3rem' }}>
+                      ✨ เลขพิเศษ 3 ตัว
+                    </h3>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                      {/* เลขเบิ้ล */}
+                      {doubleNumbers.length > 0 && (
+                        <div style={{ 
+                          padding: '20px', 
+                          background: '#fff3e0', 
+                          borderRadius: '12px',
+                          border: '2px solid #ff9800'
+                        }}>
+                          <h4 style={{ 
+                            color: '#e65100', 
+                            marginBottom: '15px',
+                            fontSize: '1.1rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            🎲 เลขเบิ้ล ({doubleNumbers.length})
+                          </h4>
+                          <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '12px' }}>
+                            เลขที่มีตัวเลขซ้ำ 2 ตัว
+                          </div>
+                          <div style={{ 
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                            maxHeight: '300px',
+                            overflowY: 'auto'
+                          }}>
+                            {doubleNumbers.map((entry, idx) => (
+                              <div 
+                                key={idx}
+                                style={{
+                                  padding: '10px 12px',
+                                  background: 'white',
+                                  borderRadius: '6px',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  fontWeight: '600',
+                                  color: '#e65100',
+                                  border: '1px solid #ffcc80'
+                                }}
+                              >
+                                <span style={{ fontSize: '1.1rem' }}>{entry.number}</span>
+                                <span style={{ 
+                                  fontSize: '0.9rem',
+                                  background: '#ffcc80',
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  color: '#e65100'
+                                }}>
+                                  {entry.count} ครั้ง
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* เลขหาม */}
+                      {sandwichNumbers.length > 0 && (
+                        <div style={{ 
+                          padding: '20px', 
+                          background: '#e8f5e9', 
+                          borderRadius: '12px',
+                          border: '2px solid #4caf50'
+                        }}>
+                          <h4 style={{ 
+                            color: '#2e7d32', 
+                            marginBottom: '15px',
+                            fontSize: '1.1rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            🥪 เลขหาม ({sandwichNumbers.length})
+                          </h4>
+                          <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '12px' }}>
+                            เลขที่ตัวแรกและตัวท้ายเหมือนกัน
+                          </div>
+                          <div style={{ 
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                            maxHeight: '300px',
+                            overflowY: 'auto'
+                          }}>
+                            {sandwichNumbers.map((entry, idx) => (
+                              <div 
+                                key={idx}
+                                style={{
+                                  padding: '10px 12px',
+                                  background: 'white',
+                                  borderRadius: '6px',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  fontWeight: '600',
+                                  color: '#2e7d32',
+                                  border: '1px solid #a5d6a7'
+                                }}
+                              >
+                                <span style={{ fontSize: '1.1rem' }}>{entry.number}</span>
+                                <span style={{ 
+                                  fontSize: '0.9rem',
+                                  background: '#a5d6a7',
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  color: '#2e7d32'
+                                }}>
+                                  {entry.count} ครั้ง
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -1606,6 +1784,135 @@ export default function Home() {
 
                 {analysisTypeTab === 'yeekee' && sortedSavedFrequency4DigitYeekee.length === 0 && (
                   <div className="empty-state">ยังไม่มีข้อมูล 4 ตัว ยีกี่</div>
+                )}
+
+                {/* Special Number Patterns for 4-digit */}
+                {(doubleNumbers4.length > 0 || sandwichNumbers4.length > 0) && (
+                  <div style={{ marginTop: '30px' }}>
+                    <h3 style={{ color: '#333', marginBottom: '20px', fontSize: '1.3rem' }}>
+                      ✨ เลขพิเศษ 4 ตัว
+                    </h3>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                      {/* เลขเบิ้ล 4 ตัว */}
+                      {doubleNumbers4.length > 0 && (
+                        <div style={{ 
+                          padding: '20px', 
+                          background: '#fff3e0', 
+                          borderRadius: '12px',
+                          border: '2px solid #ff9800'
+                        }}>
+                          <h4 style={{ 
+                            color: '#e65100', 
+                            marginBottom: '15px',
+                            fontSize: '1.1rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            🎲 เลขเบิ้ล ({doubleNumbers4.length})
+                          </h4>
+                          <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '12px' }}>
+                            เลขที่มีตัวเลขซ้ำ
+                          </div>
+                          <div style={{ 
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                            maxHeight: '300px',
+                            overflowY: 'auto'
+                          }}>
+                            {doubleNumbers4.map((entry, idx) => (
+                              <div 
+                                key={idx}
+                                style={{
+                                  padding: '10px 12px',
+                                  background: 'white',
+                                  borderRadius: '6px',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  fontWeight: '600',
+                                  color: '#e65100',
+                                  border: '1px solid #ffcc80'
+                                }}
+                              >
+                                <span style={{ fontSize: '1.1rem' }}>{entry.number}</span>
+                                <span style={{ 
+                                  fontSize: '0.9rem',
+                                  background: '#ffcc80',
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  color: '#e65100'
+                                }}>
+                                  {entry.count} ครั้ง
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* เลขหาม 4 ตัว */}
+                      {sandwichNumbers4.length > 0 && (
+                        <div style={{ 
+                          padding: '20px', 
+                          background: '#e8f5e9', 
+                          borderRadius: '12px',
+                          border: '2px solid #4caf50'
+                        }}>
+                          <h4 style={{ 
+                            color: '#2e7d32', 
+                            marginBottom: '15px',
+                            fontSize: '1.1rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}>
+                            🥪 เลขหาม ({sandwichNumbers4.length})
+                          </h4>
+                          <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: '12px' }}>
+                            เลขที่ตัวแรกและตัวท้ายเหมือนกัน
+                          </div>
+                          <div style={{ 
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                            maxHeight: '300px',
+                            overflowY: 'auto'
+                          }}>
+                            {sandwichNumbers4.map((entry, idx) => (
+                              <div 
+                                key={idx}
+                                style={{
+                                  padding: '10px 12px',
+                                  background: 'white',
+                                  borderRadius: '6px',
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  fontWeight: '600',
+                                  color: '#2e7d32',
+                                  border: '1px solid #a5d6a7'
+                                }}
+                              >
+                                <span style={{ fontSize: '1.1rem' }}>{entry.number}</span>
+                                <span style={{ 
+                                  fontSize: '0.9rem',
+                                  background: '#a5d6a7',
+                                  padding: '2px 8px',
+                                  borderRadius: '12px',
+                                  color: '#2e7d32'
+                                }}>
+                                  {entry.count} ครั้ง
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
               </>
             )}
