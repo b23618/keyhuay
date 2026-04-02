@@ -598,10 +598,6 @@ export default function Home() {
     return digits[0] === digits[2]
   }
 
-  // Filter special number patterns from saved entries
-  const doubleNumbers = dateFilteredEntries.filter(e => e.digitLength === 3 && isDoubleNumber(e.number))
-  const sandwichNumbers = dateFilteredEntries.filter(e => e.digitLength === 3 && isSandwichNumber(e.number))
-
   // Totals
   const totalSavedEntries3Digit = dateFilteredEntries.filter((e) => e.digitLength === 3).length
   const totalSavedEntries4Digit = dateFilteredEntries.filter((e) => e.digitLength === 4).length
