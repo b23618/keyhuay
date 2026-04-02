@@ -585,6 +585,23 @@ export default function Home() {
     ? allLotteryEntries 
     : allLotteryEntries.filter((e) => e.date.split(' ')[0] === analysisDateFilter)
 
+  // Helper functions for special number patterns
+  const isDoubleNumber = (num: string): boolean => {
+    if (num.length !== 3) return false
+    const digits = num.split('')
+    return digits[0] === digits[1] || digits[1] === digits[2] || digits[0] === digits[2]
+  }
+
+  const isSandwichNumber = (num: string): boolean => {
+    if (num.length !== 3) return false
+    const digits = num.split('')
+    return digits[0] === digits[2]
+  }
+
+  // Filter special number patterns from saved entries
+  const doubleNumbers = dateFilteredEntries.filter(e => e.digitLength === 3 && isDoubleNumber(e.number))
+  const sandwichNumbers = dateFilteredEntries.filter(e => e.digitLength === 3 && isSandwichNumber(e.number))
+
   // Totals
   const totalSavedEntries3Digit = dateFilteredEntries.filter((e) => e.digitLength === 3).length
   const totalSavedEntries4Digit = dateFilteredEntries.filter((e) => e.digitLength === 4).length
@@ -1021,35 +1038,72 @@ export default function Home() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sortedSavedFrequency3DigitThai.map((item, idx) => (
-                          <tr key={idx}>
-                            <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
-                            <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
-                            <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
-                              {(item[2] as string[]).join(', ')}
-                            </td>
-                            <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
-                              {(item[3] as string[]).length > 0 ? (
-                                <span style={{ 
-                                  background: '#e8f5e9', 
-                                  color: '#27ae60', 
-                                  padding: '4px 8px', 
-                                  borderRadius: '4px',
-                                  fontWeight: '600',
-                                  display: 'inline-block'
-                                }}>
-                                  {(item[3] as string[]).join(', ')}
-                                </span>
-                              ) : (
-                                <span style={{ color: '#bbb' }}>-</span>
-                              )}
-                            </td>
-                            <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
-                            <td className="percentage" style={{ textAlign: 'center' }}>
-                              {((item[1] / totalSavedEntries3DigitThai) * 100).toFixed(1)}%
-                            </td>
-                          </tr>
-                        ))}
+                        {sortedSavedFrequency3DigitThai.map((item, idx) => {
+                          const examples = (item[2] as string[])
+                          // Check if ANY example is double or sandwich
+                          const hasDouble = examples.some(num => isDoubleNumber(num))
+                          const hasSandwich = examples.some(num => isSandwichNumber(num))
+                          
+                          return (
+                            <tr key={idx}>
+                              <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
+                              <td className="number" style={{ textAlign: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                  <span>{item[0]}</span>
+                                  {hasDouble && (
+                                    <span style={{ 
+                                      background: '#fff3e0', 
+                                      color: '#e65100', 
+                                      padding: '2px 6px', 
+                                      borderRadius: '4px',
+                                      fontSize: '0.7rem',
+                                      fontWeight: '600',
+                                      border: '1px solid #ffcc80'
+                                    }}>
+                                      🎲เบิ้ล
+                                    </span>
+                                  )}
+                                  {hasSandwich && (
+                                    <span style={{ 
+                                      background: '#e8f5e9', 
+                                      color: '#2e7d32', 
+                                      padding: '2px 6px', 
+                                      borderRadius: '4px',
+                                      fontSize: '0.7rem',
+                                      fontWeight: '600',
+                                      border: '1px solid #a5d6a7'
+                                    }}>
+                                      🥪หาม
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+                                {(item[2] as string[]).join(', ')}
+                              </td>
+                              <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+                                {(item[3] as string[]).length > 0 ? (
+                                  <span style={{ 
+                                    background: '#e8f5e9', 
+                                    color: '#27ae60', 
+                                    padding: '4px 8px', 
+                                    borderRadius: '4px',
+                                    fontWeight: '600',
+                                    display: 'inline-block'
+                                  }}>
+                                    {(item[3] as string[]).join(', ')}
+                                  </span>
+                                ) : (
+                                  <span style={{ color: '#bbb' }}>-</span>
+                                )}
+                              </td>
+                              <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
+                              <td className="percentage" style={{ textAlign: 'center' }}>
+                                {((item[1] / totalSavedEntries3DigitThai) * 100).toFixed(1)}%
+                              </td>
+                            </tr>
+                          )
+                        })}
                       </tbody>
                     </table>
                   </>
@@ -1091,35 +1145,72 @@ export default function Home() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sortedSavedFrequency3DigitHanoi.map((item, idx) => (
-                          <tr key={idx}>
-                            <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
-                            <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
-                            <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
-                              {(item[2] as string[]).join(', ')}
-                            </td>
-                            <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
-                              {(item[3] as string[]).length > 0 ? (
-                                <span style={{ 
-                                  background: '#e8f5e9', 
-                                  color: '#27ae60', 
-                                  padding: '4px 8px', 
-                                  borderRadius: '4px',
-                                  fontWeight: '600',
-                                  display: 'inline-block'
-                                }}>
-                                  {(item[3] as string[]).join(', ')}
-                                </span>
-                              ) : (
-                                <span style={{ color: '#bbb' }}>-</span>
-                              )}
-                            </td>
-                            <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
-                            <td className="percentage" style={{ textAlign: 'center' }}>
-                              {((item[1] / totalSavedEntries3DigitHanoi) * 100).toFixed(1)}%
-                            </td>
-                          </tr>
-                        ))}
+                        {sortedSavedFrequency3DigitHanoi.map((item, idx) => {
+                          const examples = (item[2] as string[])
+                          // Check if ANY example is double or sandwich
+                          const hasDouble = examples.some(num => isDoubleNumber(num))
+                          const hasSandwich = examples.some(num => isSandwichNumber(num))
+                          
+                          return (
+                            <tr key={idx}>
+                              <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
+                              <td className="number" style={{ textAlign: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                  <span>{item[0]}</span>
+                                  {hasDouble && (
+                                    <span style={{ 
+                                      background: '#fff3e0', 
+                                      color: '#e65100', 
+                                      padding: '2px 6px', 
+                                      borderRadius: '4px',
+                                      fontSize: '0.7rem',
+                                      fontWeight: '600',
+                                      border: '1px solid #ffcc80'
+                                    }}>
+                                      🎲เบิ้ล
+                                    </span>
+                                  )}
+                                  {hasSandwich && (
+                                    <span style={{ 
+                                      background: '#e8f5e9', 
+                                      color: '#2e7d32', 
+                                      padding: '2px 6px', 
+                                      borderRadius: '4px',
+                                      fontSize: '0.7rem',
+                                      fontWeight: '600',
+                                      border: '1px solid #a5d6a7'
+                                    }}>
+                                      🥪หาม
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+                                {(item[2] as string[]).join(', ')}
+                              </td>
+                              <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+                                {(item[3] as string[]).length > 0 ? (
+                                  <span style={{ 
+                                    background: '#e8f5e9', 
+                                    color: '#27ae60', 
+                                    padding: '4px 8px', 
+                                    borderRadius: '4px',
+                                    fontWeight: '600',
+                                    display: 'inline-block'
+                                  }}>
+                                    {(item[3] as string[]).join(', ')}
+                                  </span>
+                                ) : (
+                                  <span style={{ color: '#bbb' }}>-</span>
+                                )}
+                              </td>
+                              <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
+                              <td className="percentage" style={{ textAlign: 'center' }}>
+                                {((item[1] / totalSavedEntries3DigitHanoi) * 100).toFixed(1)}%
+                              </td>
+                            </tr>
+                          )
+                        })}
                       </tbody>
                     </table>
                   </>
@@ -1161,35 +1252,72 @@ export default function Home() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sortedSavedFrequency3DigitYeekee.map((item, idx) => (
-                          <tr key={idx}>
-                            <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
-                            <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
-                            <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
-                              {(item[2] as string[]).join(', ')}
-                            </td>
-                            <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
-                              {(item[3] as string[]).length > 0 ? (
-                                <span style={{ 
-                                  background: '#e8f5e9', 
-                                  color: '#27ae60', 
-                                  padding: '4px 8px', 
-                                  borderRadius: '4px',
-                                  fontWeight: '600',
-                                  display: 'inline-block'
-                                }}>
-                                  {(item[3] as string[]).join(', ')}
-                                </span>
-                              ) : (
-                                <span style={{ color: '#bbb' }}>-</span>
-                              )}
-                            </td>
-                            <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
-                            <td className="percentage" style={{ textAlign: 'center' }}>
-                              {((item[1] / totalSavedEntries3DigitYeekee) * 100).toFixed(1)}%
-                            </td>
-                          </tr>
-                        ))}
+                        {sortedSavedFrequency3DigitYeekee.map((item, idx) => {
+                          const examples = (item[2] as string[])
+                          // Check if ANY example is double or sandwich
+                          const hasDouble = examples.some(num => isDoubleNumber(num))
+                          const hasSandwich = examples.some(num => isSandwichNumber(num))
+                          
+                          return (
+                            <tr key={idx}>
+                              <td style={{ textAlign: 'center', fontWeight: '600' }}>#{idx + 1}</td>
+                              <td className="number" style={{ textAlign: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                  <span>{item[0]}</span>
+                                  {hasDouble && (
+                                    <span style={{ 
+                                      background: '#fff3e0', 
+                                      color: '#e65100', 
+                                      padding: '2px 6px', 
+                                      borderRadius: '4px',
+                                      fontSize: '0.7rem',
+                                      fontWeight: '600',
+                                      border: '1px solid #ffcc80'
+                                    }}>
+                                      🎲เบิ้ล
+                                    </span>
+                                  )}
+                                  {hasSandwich && (
+                                    <span style={{ 
+                                      background: '#e8f5e9', 
+                                      color: '#2e7d32', 
+                                      padding: '2px 6px', 
+                                      borderRadius: '4px',
+                                      fontSize: '0.7rem',
+                                      fontWeight: '600',
+                                      border: '1px solid #a5d6a7'
+                                    }}>
+                                      🥪หาม
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
+                                {(item[2] as string[]).join(', ')}
+                              </td>
+                              <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+                                {(item[3] as string[]).length > 0 ? (
+                                  <span style={{ 
+                                    background: '#e8f5e9', 
+                                    color: '#27ae60', 
+                                    padding: '4px 8px', 
+                                    borderRadius: '4px',
+                                    fontWeight: '600',
+                                    display: 'inline-block'
+                                  }}>
+                                    {(item[3] as string[]).join(', ')}
+                                  </span>
+                                ) : (
+                                  <span style={{ color: '#bbb' }}>-</span>
+                                )}
+                              </td>
+                              <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
+                              <td className="percentage" style={{ textAlign: 'center' }}>
+                                {((item[1] / totalSavedEntries3DigitYeekee) * 100).toFixed(1)}%
+                              </td>
+                            </tr>
+                          )
+                        })}
                       </tbody>
                     </table>
                   </>
@@ -1206,6 +1334,8 @@ export default function Home() {
                 {analysisTypeTab === 'yeekee' && sortedSavedFrequency3DigitYeekee.length === 0 && (
                   <div className="empty-state">ยังไม่มีข้อมูล 3 ตัว ยีกี่</div>
                 )}
+
+                
               </>
             )}
 
