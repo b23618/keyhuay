@@ -11,6 +11,25 @@ interface PresetGroup {
   updatedAt?: string
 }
 
+interface LotteryEntry {
+  id: string
+  number: string
+  digitLength: number
+  type: 'thai' | 'hanoi' | 'yeekee'
+  date: string
+}
+
+interface AnalysisResult {
+  number: string
+  count: number
+  percentage: number
+  types: {
+    thai: number
+    hanoi: number
+    yeekee: number
+  }
+}
+
 interface Toast {
   id: string
   message: string
@@ -24,6 +43,8 @@ export default function PresetsPage() {
   const [selectedPresets, setSelectedPresets] = useState<string[]>([])
   const [toasts, setToasts] = useState<Toast[]>([])
   const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [analyzingGroupId, setAnalyzingGroupId] = useState<string | null>(null)
+  const [analysisResults, setAnalysisResults] = useState<{ [groupId: string]: AnalysisResult[] }>({})
 
   const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info'): void => {
     const id = Date.now().toString()
@@ -137,6 +158,81 @@ export default function PresetsPage() {
   const deselectAll = (): void => {
     setSelectedPresets([])
     showToast('✅ ยกเลิกการเลือกทั้งหมดแล้ว', 'info')
+  }
+
+  const analyzePresetGroup = async (groupId: string): Promise<void> => {
+    setAnalyzingGroupId(groupId)
+    
+    try {
+      // Fetch all lottery entries from database
+      const response = await fetch('/api/lottery?limit=10000')
+      if (!response.ok) {
+        throw new Error('Failed to fetch lottery entries')
+      }
+
+      const data = await response.json()
+      const entries: LotteryEntry[] = data.data || []
+
+      if (entries.length === 0) {
+        showToast('⚠️ ไม่พบข้อมูลเลขที่บันทึก', 'warning')
+        setAnalyzingGroupId(null)
+        return
+      }
+
+      const group = presetGroups.find(g => g.id === groupId)
+      
+      if (!group) {
+        showToast('❌ ไม่พบกลุ่มเลข', 'error')
+        setAnalyzingGroupId(null)
+        return
+      }
+
+      // Count frequency of each number in the preset group by type
+      const frequencyMap: { [key: string]: { count: number; types: { thai: number; hanoi: number; yeekee: number } } } = {}
+      group.numbers.forEach(num => {
+        frequencyMap[num] = { count: 0, types: { thai: 0, hanoi: 0, yeekee: 0 } }
+      })
+
+      entries.forEach(entry => {
+        if (group.numbers.includes(entry.number)) {
+          frequencyMap[entry.number].count++
+          frequencyMap[entry.number].types[entry.type]++
+        }
+      })
+
+      // Calculate total occurrences
+      const totalOccurrences = Object.values(frequencyMap).reduce((sum, item) => sum + item.count, 0)
+
+      // Create analysis results sorted by frequency
+      const results: AnalysisResult[] = Object.entries(frequencyMap)
+        .map(([number, data]) => ({
+          number,
+          count: data.count,
+          percentage: totalOccurrences > 0 ? (data.count / totalOccurrences) * 100 : 0,
+          types: data.types
+        }))
+        .sort((a, b) => b.count - a.count)
+
+      setAnalysisResults(prev => ({
+        ...prev,
+        [groupId]: results
+      }))
+
+      showToast('✅ วิเคราะห์เสร็จสิ้น', 'success')
+    } catch (error) {
+      console.error('Error analyzing preset group:', error)
+      showToast('❌ เกิดข้อผิดพลาดในการวิเคราะห์', 'error')
+    } finally {
+      setAnalyzingGroupId(null)
+    }
+  }
+
+  const closeAnalysis = (groupId: string): void => {
+    setAnalysisResults(prev => {
+      const newResults = { ...prev }
+      delete newResults[groupId]
+      return newResults
+    })
   }
 
   return (
@@ -393,29 +489,191 @@ export default function PresetsPage() {
                     </div>
                   </div>
                   
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      if (confirm(`ต้องการลบกลุ่มเลข "${group.name}" ใช่หรือไม่?`)) {
-                        deletePresetGroup(group.id)
-                      }
-                    }}
-                    style={{
-                      background: '#e74c3c',
-                      color: 'white',
-                      border: 'none',
-                      padding: '8px 16px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '0.9rem',
-                      fontWeight: '600',
-                      marginLeft: '15px',
-                      transition: 'all 0.2s'
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        analyzePresetGroup(group.id)
+                      }}
+                      disabled={analyzingGroupId === group.id}
+                      style={{
+                        background: analyzingGroupId === group.id ? '#95a5a6' : '#3498db',
+                        color: 'white',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '6px',
+                        cursor: analyzingGroupId === group.id ? 'not-allowed' : 'pointer',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {analyzingGroupId === group.id ? '⏳ กำลังวิเคราะห์...' : '📊 วิเคราะห์'}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (confirm(`ต้องการลบกลุ่มเลข "${group.name}" ใช่หรือไม่?`)) {
+                          deletePresetGroup(group.id)
+                        }
+                      }}
+                      style={{
+                        background: '#e74c3c',
+                        color: 'white',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      🗑️ ลบ
+                    </button>
+                  </div>
+                </div>
+
+                {/* Analysis Results */}
+                {analysisResults[group.id] && (
+                  <div 
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ 
+                      marginTop: '15px', 
+                      padding: '15px', 
+                      background: 'white',
+                      borderRadius: '8px',
+                      border: '2px solid #3498db'
                     }}
                   >
-                    🗑️ ลบ
-                  </button>
-                </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                      <h4 style={{ margin: 0, color: '#2c3e50', fontSize: '1.1rem' }}>
+                        📊 ผลการวิเคราะห์
+                      </h4>
+                      <button
+                        onClick={() => closeAnalysis(group.id)}
+                        style={{
+                          background: '#95a5a6',
+                          color: 'white',
+                          border: 'none',
+                          padding: '4px 12px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: '600'
+                        }}
+                      >
+                        ✕ ปิด
+                      </button>
+                    </div>
+
+                    {analysisResults[group.id].length === 0 || analysisResults[group.id].every(r => r.count === 0) ? (
+                      <div style={{ textAlign: 'center', padding: '20px', color: '#7f8c8d' }}>
+                        ไม่พบเลขในกลุ่มนี้ในข้อมูลที่บันทึก
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
+                        {analysisResults[group.id]
+                          .filter(result => result.count > 0)
+                          .map((result, idx) => (
+                            <div 
+                              key={idx}
+                              style={{
+                                padding: '12px',
+                                background: '#f8f9fa',
+                                borderRadius: '6px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '8px',
+                                border: '1px solid #e0e0e0'
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  <span style={{ 
+                                    fontSize: '0.85rem', 
+                                    color: '#7f8c8d',
+                                    fontWeight: '600',
+                                    minWidth: '30px'
+                                  }}>
+                                    #{idx + 1}
+                                  </span>
+                                  <span style={{ 
+                                    fontSize: '1.2rem', 
+                                    fontWeight: '700',
+                                    color: '#2c3e50',
+                                    fontFamily: 'monospace'
+                                  }}>
+                                    {result.number}
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <span style={{ 
+                                    fontSize: '0.9rem',
+                                    background: '#3498db',
+                                    color: 'white',
+                                    padding: '4px 10px',
+                                    borderRadius: '12px',
+                                    fontWeight: '600'
+                                  }}>
+                                    {result.count} ครั้ง
+                                  </span>
+                                  <span style={{ 
+                                    fontSize: '0.85rem',
+                                    color: '#7f8c8d',
+                                    minWidth: '50px',
+                                    textAlign: 'right'
+                                  }}>
+                                    {result.percentage.toFixed(1)}%
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {/* Type breakdown */}
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', paddingLeft: '42px' }}>
+                                {result.types.thai > 0 && (
+                                  <span style={{ 
+                                    fontSize: '0.75rem',
+                                    background: '#e8f5e9',
+                                    color: '#27ae60',
+                                    padding: '2px 8px',
+                                    borderRadius: '10px',
+                                    fontWeight: '600'
+                                  }}>
+                                    🇹🇭 ไทย: {result.types.thai}
+                                  </span>
+                                )}
+                                {result.types.hanoi > 0 && (
+                                  <span style={{ 
+                                    fontSize: '0.75rem',
+                                    background: '#fff3e0',
+                                    color: '#f39c12',
+                                    padding: '2px 8px',
+                                    borderRadius: '10px',
+                                    fontWeight: '600'
+                                  }}>
+                                    🇻🇳 ฮานอย: {result.types.hanoi}
+                                  </span>
+                                )}
+                                {result.types.yeekee > 0 && (
+                                  <span style={{ 
+                                    fontSize: '0.75rem',
+                                    background: '#e3f2fd',
+                                    color: '#2196f3',
+                                    padding: '2px 8px',
+                                    borderRadius: '10px',
+                                    fontWeight: '600'
+                                  }}>
+                                    🎰 ยี่กี: {result.types.yeekee}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
