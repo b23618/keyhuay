@@ -35,8 +35,7 @@ export default function Home() {
   const [analysisTab, setAnalysisTab] = useState<3 | 4>(4)
   const [analysisTypeTab, setAnalysisTypeTab] = useState<'thai' | 'hanoi' | 'yeekee'>('thai')
   const [analysisDateFilter, setAnalysisDateFilter] = useState<string>('all')
-  const [roundNumber, setRoundNumber] = useState<string>('')
-  const [analysisRoundFilter, setAnalysisRoundFilter] = useState<string>('all')
+  const [yeekeeDate, setYeekeeDate] = useState<string>('')
   const [entriesPage, setEntriesPage] = useState<number>(1)
   const [totalEntries, setTotalEntries] = useState<number>(0)
   const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -47,7 +46,7 @@ export default function Home() {
     yeekee: Array<{ number: string; count: number; examples: string[] }>
   } | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editValues, setEditValues] = useState<{ number: string; type: 'thai' | 'hanoi' | 'yeekee'; round?: string }>({ number: '', type: 'thai' })
+  const [editValues, setEditValues] = useState<{ number: string; type: 'thai' | 'hanoi' | 'yeekee'; date?: string }>({ number: '', type: 'thai' })
   const ENTRIES_PER_PAGE = 50
 
   const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info'): void => {
@@ -291,22 +290,36 @@ export default function Home() {
       return
     }
 
-    if (lotteryType === 'yeekee' && !roundNumber) {
-      showToast('กรุณากรอกรอบสำหรับยีกี่', 'warning')
+    if (lotteryType === 'yeekee' && !yeekeeDate) {
+      showToast('กรุณาเลือกวันที่สำหรับยีกี่', 'warning')
       return
     }
 
     const now = new Date()
-    const dateStr = now.toLocaleDateString('th-TH', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    })
-    const timeStr = now.toLocaleTimeString('th-TH', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    })
+    let dateStr: string
+    let timeStr: string
+
+    if (lotteryType === 'yeekee' && yeekeeDate) {
+      // Use selected date for Yeekee
+      dateStr = yeekeeDate
+      timeStr = now.toLocaleTimeString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+    } else {
+      // Use current date/time for Thai and Hanoi
+      dateStr = now.toLocaleDateString('th-TH', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      })
+      timeStr = now.toLocaleTimeString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+    }
 
     const timestamp = Date.now()
 
@@ -322,7 +335,6 @@ export default function Home() {
           digitLength,
           date: `${dateStr} ${timeStr}`,
           timestamp,
-          round: lotteryType === 'yeekee' ? parseInt(roundNumber) : undefined,
         }),
       })
 
@@ -339,13 +351,12 @@ export default function Home() {
         digitLength,
         date: `${dateStr} ${timeStr}`,
         timestamp,
-        round: lotteryType === 'yeekee' ? parseInt(roundNumber) : undefined,
       }
 
       setLotteryEntries([newEntry, ...lotteryEntries])
       setAllLotteryEntries([newEntry, ...allLotteryEntries])
       setInputNumber('')
-      setRoundNumber('')
+      setYeekeeDate('')
       showToast('✅ บันทึกเลขสำเร็จ', 'success')
     } catch (error) {
       console.error('Error saving entry:', error)
@@ -377,7 +388,7 @@ export default function Home() {
     setEditValues({
       number: entry.number,
       type: entry.type,
-      round: entry.round?.toString() || ''
+      date: entry.type === 'yeekee' ? entry.date.split(' ')[0] : undefined
     })
   }
 
@@ -392,8 +403,8 @@ export default function Home() {
       return
     }
 
-    if (editValues.type === 'yeekee' && !editValues.round) {
-      showToast('กรุณากรอกรอบสำหรับยีกี่', 'warning')
+    if (editValues.type === 'yeekee' && !editValues.date) {
+      showToast('กรุณาเลือกวันที่สำหรับยีกี่', 'warning')
       return
     }
 
@@ -406,7 +417,7 @@ export default function Home() {
         body: JSON.stringify({
           number: editValues.number,
           type: editValues.type,
-          round: editValues.type === 'yeekee' ? parseInt(editValues.round!) : null,
+          date: editValues.type === 'yeekee' ? editValues.date : undefined,
         }),
       })
 
@@ -449,7 +460,7 @@ export default function Home() {
     return digits
   }
 
-  const analyzeSavedEntries = (filterByDigitLength?: 3 | 4, filterByType?: 'thai' | 'hanoi' | 'yeekee', filterByDate?: string, filterByRound?: string): { [key: string]: { count: number; examples: string[] } } => {
+  const analyzeSavedEntries = (filterByDigitLength?: 3 | 4, filterByType?: 'thai' | 'hanoi' | 'yeekee', filterByDate?: string): { [key: string]: { count: number; examples: string[] } } => {
     const entryFrequency: { [key: string]: { idSet: Set<string>; examples: string[] } } = {}
     allLotteryEntries.forEach((entry) => {
       if (filterByDigitLength && entry.digitLength !== filterByDigitLength) {
@@ -458,14 +469,10 @@ export default function Home() {
       if (filterByType && entry.type !== filterByType) {
         return
       }
+      // Filter by date for all types (Thai, Hanoi, and Yeekee)
       if (filterByDate && filterByDate !== 'all') {
         const entryDate = entry.date.split(' ')[0]
         if (entryDate !== filterByDate) {
-          return
-        }
-      }
-      if (filterByRound && filterByRound !== 'all' && entry.type === 'yeekee') {
-        if (!entry.round || entry.round.toString() !== filterByRound) {
           return
         }
       }
@@ -509,7 +516,7 @@ export default function Home() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
-  const savedEntryFrequency3DigitYeekee = analyzeSavedEntries(3, 'yeekee', analysisDateFilter, analysisRoundFilter)
+  const savedEntryFrequency3DigitYeekee = analyzeSavedEntries(3, 'yeekee', analysisDateFilter)
   const sortedSavedFrequency3DigitYeekee = Object.entries(savedEntryFrequency3DigitYeekee)
     .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
     .sort((a, b) => b[1] - a[1])
@@ -534,7 +541,7 @@ export default function Home() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
-  const savedEntryFrequency4DigitYeekee = analyzeSavedEntries(4, 'yeekee', analysisDateFilter, analysisRoundFilter)
+  const savedEntryFrequency4DigitYeekee = analyzeSavedEntries(4, 'yeekee', analysisDateFilter)
   const sortedSavedFrequency4DigitYeekee = Object.entries(savedEntryFrequency4DigitYeekee)
     .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
     .sort((a, b) => b[1] - a[1])
@@ -542,15 +549,6 @@ export default function Home() {
 
   // Extract unique dates from lottery entries
   const uniqueDates = Array.from(new Set(allLotteryEntries.map((e) => e.date.split(' ')[0]))).sort().reverse()
-
-  // Extract unique rounds from Yeekee entries
-  const uniqueRounds = Array.from(
-    new Set(
-      allLotteryEntries
-        .filter((e) => e.type === 'yeekee' && e.round)
-        .map((e) => e.round!.toString())
-    )
-  ).sort((a, b) => parseInt(a) - parseInt(b))
 
   // Filter entries by date if selected
   const dateFilteredEntries = analysisDateFilter === 'all' 
@@ -633,18 +631,16 @@ export default function Home() {
           </div>
           {lotteryType === 'yeekee' && (
             <div className="input-group">
-              <label htmlFor="round-number">รอบที่</label>
+              <label htmlFor="yeekee-date">วันที่ (สำหรับยีกี่)</label>
               <input
-                id="round-number"
-                type="text"
-                inputMode="numeric"
-                value={roundNumber}
-                onChange={(e) => setRoundNumber(e.target.value.replace(/\D/g, ''))}
-                placeholder="เช่น 1, 2, 3..."
+                id="yeekee-date"
+                type="date"
+                value={yeekeeDate}
+                onChange={(e) => setYeekeeDate(e.target.value)}
                 style={{
                   width: '100%',
                   padding: '12px',
-                  border: '2px solid #ddd',
+                  border: '2px solid #9b59b6',
                   borderRadius: '8px',
                   fontSize: '1rem',
                 }}
@@ -824,63 +820,33 @@ export default function Home() {
 
             {!isLoadingAnalysis && (
               <>
-                {/* Date and Round filters */}
-                <div style={{ display: 'grid', gridTemplateColumns: analysisTypeTab === 'yeekee' ? '1fr 1fr' : '1fr', gap: '15px', marginBottom: '20px' }}>
-                  <div>
-                    <label htmlFor="date-filter" style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
-                      📅 กรองตามวันที่
-                    </label>
-                    <select
-                      id="date-filter"
-                      value={analysisDateFilter}
-                      onChange={(e) => setAnalysisDateFilter(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        fontSize: '1rem',
-                        border: '2px solid #3498db',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        background: 'white',
-                      }}
-                    >
-                      <option value="all">ทั้งหมด</option>
-                      {uniqueDates.map((date) => (
-                        <option key={date} value={date}>
-                          {date}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  {analysisTypeTab === 'yeekee' && (
-                    <div>
-                      <label htmlFor="round-filter" style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
-                        🎲 กรองตามรอบ
-                      </label>
-                      <select
-                        id="round-filter"
-                        value={analysisRoundFilter}
-                        onChange={(e) => setAnalysisRoundFilter(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '10px',
-                          fontSize: '1rem',
-                          border: '2px solid #9b59b6',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          background: 'white',
-                        }}
-                      >
-                        <option value="all">ทุกรอบ</option>
-                        {uniqueRounds.map((round) => (
-                          <option key={round} value={round}>
-                            รอบที่ {round}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+                {/* Date filter for all lottery types */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label htmlFor="date-filter" style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
+                    📅 กรองตามวันที่
+                  </label>
+                  <select
+                    id="date-filter"
+                    value={analysisDateFilter}
+                    onChange={(e) => setAnalysisDateFilter(e.target.value)}
+                    style={{
+                      width: '100%',
+                      maxWidth: '300px',
+                      padding: '10px',
+                      fontSize: '1rem',
+                      border: '2px solid #3498db',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      background: 'white',
+                    }}
+                  >
+                    <option value="all">ทั้งหมด</option>
+                    {uniqueDates.map((date) => (
+                      <option key={date} value={date}>
+                        {date}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Tabs for digit length */}
@@ -1400,7 +1366,6 @@ export default function Home() {
                       <th style={{ textAlign: 'center' }}>เลข</th>
                       <th style={{ textAlign: 'center' }}>จำนวนตัว</th>
                       <th style={{ textAlign: 'center' }}>ประเภท</th>
-                      <th style={{ textAlign: 'center' }}>รอบ</th>
                       <th style={{ textAlign: 'center' }}>วันที่และเวลา</th>
                       <th style={{ textAlign: 'center' }}>จัดการ</th>
                     </tr>
@@ -1452,26 +1417,19 @@ export default function Home() {
                             <td style={{ textAlign: 'center' }}>
                               {editValues.type === 'yeekee' ? (
                                 <input
-                                  type="text"
-                                  inputMode="numeric"
-                                  value={editValues.round || ''}
-                                  onChange={(e) => setEditValues({ ...editValues, round: e.target.value.replace(/\D/g, '') })}
-                                  placeholder="รอบ"
+                                  type="date"
+                                  value={editValues.date || ''}
+                                  onChange={(e) => setEditValues({ ...editValues, date: e.target.value })}
                                   style={{
-                                    width: '50px',
                                     padding: '4px 8px',
                                     fontSize: '0.9rem',
                                     border: '2px solid #9b59b6',
                                     borderRadius: '4px',
-                                    textAlign: 'center'
                                   }}
                                 />
                               ) : (
-                                <span style={{ color: '#999' }}>-</span>
+                                <span style={{ color: '#666', fontSize: '0.85rem' }}>{entry.date}</span>
                               )}
-                            </td>
-                            <td style={{ textAlign: 'center', color: '#666', fontSize: '0.85rem' }}>
-                              {entry.date}
                             </td>
                             <td style={{ textAlign: 'center' }}>
                               <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
@@ -1518,9 +1476,6 @@ export default function Home() {
                             </td>
                             <td style={{ textAlign: 'center' }}>
                               {getLotteryTypeLabel(entry.type)}
-                            </td>
-                            <td style={{ textAlign: 'center', fontWeight: '600', color: '#9b59b6' }}>
-                              {entry.type === 'yeekee' && entry.round ? `รอบ ${entry.round}` : '-'}
                             </td>
                             <td style={{ textAlign: 'center', color: '#666' }}>
                               {entry.date}

@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     // Get paginated results
     const result = await query(
-      'SELECT id, number, type, digit_length as "digitLength", date, timestamp, round, created_at as "createdAt", updated_at as "updatedAt" FROM lottery_entries ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+      'SELECT id, number, type, digit_length as "digitLength", date, timestamp, created_at as "createdAt", updated_at as "updatedAt" FROM lottery_entries ORDER BY created_at DESC LIMIT $1 OFFSET $2',
       [limit, offset]
     )
 
@@ -36,19 +36,19 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { number, type, digitLength, date, timestamp, round } = body
+    const { number, type, digitLength, date, timestamp } = body
 
-    console.log('POST /api/lottery - Received:', { number, type, digitLength, date, timestamp, round })
+    console.log('POST /api/lottery - Received:', { number, type, digitLength, date, timestamp })
 
     if (!number || !type || !date) {
       console.warn('Missing required fields:', { number, type, date })
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    console.log('Inserting new entry:', { number, type, digitLength, date, timestamp, round })
+    console.log('Inserting new entry:', { number, type, digitLength, date, timestamp })
     const result = await query(
-      'INSERT INTO lottery_entries (number, type, digit_length, date, timestamp, round) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, number, type, digit_length as "digitLength", date, timestamp, round, created_at as "createdAt", updated_at as "updatedAt"',
-      [number, type, digitLength || 4, date, timestamp || Date.now(), round || null]
+      'INSERT INTO lottery_entries (number, type, digit_length, date, timestamp) VALUES ($1, $2, $3, $4, $5) RETURNING id, number, type, digit_length as "digitLength", date, timestamp, created_at as "createdAt", updated_at as "updatedAt"',
+      [number, type, digitLength || 4, date, timestamp || Date.now()]
     )
 
     console.log('Entry created successfully:', result.rows[0])

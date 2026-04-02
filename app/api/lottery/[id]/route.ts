@@ -8,16 +8,34 @@ export async function PUT(
   try {
     const { id } = params
     const body = await request.json()
-    const { number, type, round } = body
+    const { number, type, date } = body
 
     if (!number || !type) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const result = await query(
-      'UPDATE lottery_entries SET number = $1, type = $2, round = $3, updated_at = NOW() WHERE id = $4 RETURNING id, number, type, digit_length as "digitLength", date, timestamp, round, created_at as "createdAt", updated_at as "updatedAt"',
-      [number, type, round, id]
-    )
+    // For Yeekee, update date if provided; otherwise just update number and type
+    let result
+    if (type === 'yeekee' && date) {
+      // Get current time
+      const now = new Date()
+      const timeStr = now.toLocaleTimeString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+      const fullDate = `${date} ${timeStr}`
+      
+      result = await query(
+        'UPDATE lottery_entries SET number = $1, type = $2, date = $3, updated_at = NOW() WHERE id = $4 RETURNING id, number, type, digit_length as "digitLength", date, timestamp, created_at as "createdAt", updated_at as "updatedAt"',
+        [number, type, fullDate, id]
+      )
+    } else {
+      result = await query(
+        'UPDATE lottery_entries SET number = $1, type = $2, updated_at = NOW() WHERE id = $3 RETURNING id, number, type, digit_length as "digitLength", date, timestamp, created_at as "createdAt", updated_at as "updatedAt"',
+        [number, type, id]
+      )
+    }
 
     if (result.rows.length === 0) {
       return NextResponse.json({ error: 'Entry not found' }, { status: 404 })
