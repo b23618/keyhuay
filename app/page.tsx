@@ -22,6 +22,12 @@ interface Toast {
   type: 'success' | 'error' | 'warning' | 'info'
 }
 
+interface PresetGroup {
+  id: string
+  name: string
+  numbers: string[]
+}
+
 export default function Home() {
   const [inputNumber, setInputNumber] = useState<string>('')
   const [reversedNumbers, setReversedNumbers] = useState<string[]>([])
@@ -36,6 +42,10 @@ export default function Home() {
   const [analysisTypeTab, setAnalysisTypeTab] = useState<'thai' | 'hanoi' | 'yeekee'>('thai')
   const [analysisDateFilter, setAnalysisDateFilter] = useState<string>('all')
   const [yeekeeDate, setYeekeeDate] = useState<string>('')
+  const [presetGroups, setPresetGroups] = useState<PresetGroup[]>([])
+  const [newPresetName, setNewPresetName] = useState<string>('')
+  const [newPresetNumbers, setNewPresetNumbers] = useState<string>('')
+  const [selectedPresets, setSelectedPresets] = useState<string[]>([])
   const [entriesPage, setEntriesPage] = useState<number>(1)
   const [totalEntries, setTotalEntries] = useState<number>(0)
   const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -109,6 +119,7 @@ export default function Home() {
     
     fetchLotteryEntries(entriesPage)
     fetchAllEntries()
+    fetchPresetGroups()
   }, [entriesPage])
 
 
@@ -282,6 +293,93 @@ export default function Home() {
     setReversedNumbers([])
     setAllNumbers([])
     setFrequency({})
+  }
+
+  const fetchPresetGroups = async (): Promise<void> => {
+    try {
+      const response = await fetch('/api/presets')
+      if (!response.ok) {
+        throw new Error('Failed to fetch preset groups')
+      }
+      const data = await response.json()
+      setPresetGroups(data.data || [])
+    } catch (error) {
+      console.error('Error fetching preset groups:', error)
+    }
+  }
+
+  const addPresetGroup = async (): Promise<void> => {
+    if (!newPresetName.trim()) {
+      showToast('กรุณากรอกชื่อกลุ่มเลข', 'warning')
+      return
+    }
+    if (!newPresetNumbers.trim()) {
+      showToast('กรุณากรอกเลข', 'warning')
+      return
+    }
+
+    const numbers = newPresetNumbers
+      .split(/[,\s]+/)
+      .map(n => n.trim())
+      .filter(n => /^\d+$/.test(n))
+
+    if (numbers.length === 0) {
+      showToast('ไม่พบเลขที่ถูกต้อง', 'warning')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/presets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newPresetName,
+          numbers: numbers
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save preset group')
+      }
+
+      const savedGroup = await response.json()
+      setPresetGroups([...presetGroups, savedGroup])
+      setNewPresetName('')
+      setNewPresetNumbers('')
+      showToast(`✅ เพิ่มกลุ่มเลข "${newPresetName}" สำเร็จ`, 'success')
+    } catch (error) {
+      console.error('Error saving preset group:', error)
+      showToast('❌ เกิดข้อผิดพลาดในการบันทึก', 'error')
+    }
+  }
+
+  const deletePresetGroup = async (id: string): Promise<void> => {
+    try {
+      const response = await fetch(`/api/presets/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete preset group')
+      }
+
+      setPresetGroups(presetGroups.filter(g => g.id !== id))
+      setSelectedPresets(selectedPresets.filter(sid => sid !== id))
+      showToast('✅ ลบกลุ่มเลขสำเร็จ', 'success')
+    } catch (error) {
+      console.error('Error deleting preset group:', error)
+      showToast('❌ เกิดข้อผิดพลาดในการลบ', 'error')
+    }
+  }
+
+  const togglePresetSelection = (id: string): void => {
+    if (selectedPresets.includes(id)) {
+      setSelectedPresets(selectedPresets.filter(sid => sid !== id))
+    } else {
+      setSelectedPresets([...selectedPresets, id])
+    }
   }
 
   const saveLotteryEntry = async (): Promise<void> => {
@@ -460,8 +558,9 @@ export default function Home() {
     return digits
   }
 
-  const analyzeSavedEntries = (filterByDigitLength?: 3 | 4, filterByType?: 'thai' | 'hanoi' | 'yeekee', filterByDate?: string): { [key: string]: { count: number; examples: string[] } } => {
-    const entryFrequency: { [key: string]: { idSet: Set<string>; examples: string[] } } = {}
+  const analyzeSavedEntries = (filterByDigitLength?: 3 | 4, filterByType?: 'thai' | 'hanoi' | 'yeekee', filterByDate?: string): { [key: string]: { count: number; examples: string[]; presetGroups: string[] } } => {
+    const entryFrequency: { [key: string]: { idSet: Set<string>; examples: string[]; presetGroupsSet: Set<string> } } = {}
+    
     allLotteryEntries.forEach((entry) => {
       if (filterByDigitLength && entry.digitLength !== filterByDigitLength) {
         return
@@ -478,20 +577,28 @@ export default function Home() {
       }
       const normalized = getNormalizedNumber(entry.number)
       if (!entryFrequency[normalized]) {
-        entryFrequency[normalized] = { idSet: new Set(), examples: [] }
+        entryFrequency[normalized] = { idSet: new Set(), examples: [], presetGroupsSet: new Set() }
       }
       entryFrequency[normalized].idSet.add(entry.id)
       if (!entryFrequency[normalized].examples.includes(entry.number)) {
         entryFrequency[normalized].examples.push(entry.number)
       }
+      
+      // Check if this number matches any preset groups
+      presetGroups.forEach(group => {
+        if (group.numbers.includes(entry.number)) {
+          entryFrequency[normalized].presetGroupsSet.add(group.name)
+        }
+      })
     })
     
     // Convert Set to count
-    const result: { [key: string]: { count: number; examples: string[] } } = {}
+    const result: { [key: string]: { count: number; examples: string[]; presetGroups: string[] } } = {}
     Object.entries(entryFrequency).forEach(([normalized, data]) => {
       result[normalized] = {
         count: data.idSet.size,
-        examples: data.examples
+        examples: data.examples,
+        presetGroups: Array.from(data.presetGroupsSet)
       }
     })
     return result
@@ -500,50 +607,50 @@ export default function Home() {
   // 3-digit analysis
   const savedEntryFrequency3Digit = analyzeSavedEntries(3, undefined, analysisDateFilter)
   const sortedSavedFrequency3Digit = Object.entries(savedEntryFrequency3Digit)
-    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .map(([normalized, data]) => [normalized, data.count, data.examples, data.presetGroups] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
   const savedEntryFrequency3DigitThai = analyzeSavedEntries(3, 'thai', analysisDateFilter)
   const sortedSavedFrequency3DigitThai = Object.entries(savedEntryFrequency3DigitThai)
-    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .map(([normalized, data]) => [normalized, data.count, data.examples, data.presetGroups] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
   const savedEntryFrequency3DigitHanoi = analyzeSavedEntries(3, 'hanoi', analysisDateFilter)
   const sortedSavedFrequency3DigitHanoi = Object.entries(savedEntryFrequency3DigitHanoi)
-    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .map(([normalized, data]) => [normalized, data.count, data.examples, data.presetGroups] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
   const savedEntryFrequency3DigitYeekee = analyzeSavedEntries(3, 'yeekee', analysisDateFilter)
   const sortedSavedFrequency3DigitYeekee = Object.entries(savedEntryFrequency3DigitYeekee)
-    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .map(([normalized, data]) => [normalized, data.count, data.examples, data.presetGroups] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
   // 4-digit analysis
   const savedEntryFrequency4Digit = analyzeSavedEntries(4, undefined, analysisDateFilter)
   const sortedSavedFrequency4Digit = Object.entries(savedEntryFrequency4Digit)
-    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .map(([normalized, data]) => [normalized, data.count, data.examples, data.presetGroups] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
   const savedEntryFrequency4DigitThai = analyzeSavedEntries(4, 'thai', analysisDateFilter)
   const sortedSavedFrequency4DigitThai = Object.entries(savedEntryFrequency4DigitThai)
-    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .map(([normalized, data]) => [normalized, data.count, data.examples, data.presetGroups] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
   const savedEntryFrequency4DigitHanoi = analyzeSavedEntries(4, 'hanoi', analysisDateFilter)
   const sortedSavedFrequency4DigitHanoi = Object.entries(savedEntryFrequency4DigitHanoi)
-    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .map(([normalized, data]) => [normalized, data.count, data.examples, data.presetGroups] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
   const savedEntryFrequency4DigitYeekee = analyzeSavedEntries(4, 'yeekee', analysisDateFilter)
   const sortedSavedFrequency4DigitYeekee = Object.entries(savedEntryFrequency4DigitYeekee)
-    .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
+    .map(([normalized, data]) => [normalized, data.count, data.examples, data.presetGroups] as const)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
@@ -568,8 +675,29 @@ export default function Home() {
   return (
     <div className="container">
       <div className="header">
-        <h1>🎰 Keyhuay - ระบบคีย์หวย</h1>
-        <p>กรอกเลขแล้ววิเคราะห์เลขที่ออกบ่อยสุด</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1>🎰 Keyhuay - ระบบคีย์หวย</h1>
+            <p>กรอกเลขแล้ววิเคราะห์เลขที่ออกบ่อยสุด</p>
+          </div>
+          <a 
+            href="/presets"
+            style={{
+              padding: '12px 24px',
+              background: '#27ae60',
+              color: 'white',
+              borderRadius: '8px',
+              textDecoration: 'none',
+              fontWeight: '600',
+              fontSize: '1rem',
+              transition: 'all 0.2s',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              display: 'inline-block'
+            }}
+          >
+            📌 จัดการเลขตั้งต้น
+          </a>
+        </div>
       </div>
 
       <div className="main-grid">
@@ -964,6 +1092,7 @@ export default function Home() {
                           <th>อันดับ</th>
                           <th>เลขกลับ</th>
                           <th>ตัวอย่าง</th>
+                          <th>กลุ่มเลขตั้งต้น</th>
                           <th>ครั้ง</th>
                           <th>ร้อยละ</th>
                         </tr>
@@ -975,6 +1104,22 @@ export default function Home() {
                             <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
                             <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
                               {(item[2] as string[]).join(', ')}
+                            </td>
+                            <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+                              {(item[3] as string[]).length > 0 ? (
+                                <span style={{ 
+                                  background: '#e8f5e9', 
+                                  color: '#27ae60', 
+                                  padding: '4px 8px', 
+                                  borderRadius: '4px',
+                                  fontWeight: '600',
+                                  display: 'inline-block'
+                                }}>
+                                  {(item[3] as string[]).join(', ')}
+                                </span>
+                              ) : (
+                                <span style={{ color: '#bbb' }}>-</span>
+                              )}
                             </td>
                             <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
                             <td className="percentage" style={{ textAlign: 'center' }}>
@@ -1017,6 +1162,7 @@ export default function Home() {
                           <th>อันดับ</th>
                           <th>เลขกลับ</th>
                           <th>ตัวอย่าง</th>
+                          <th>กลุ่มเลขตั้งต้น</th>
                           <th>ครั้ง</th>
                           <th>ร้อยละ</th>
                         </tr>
@@ -1028,6 +1174,22 @@ export default function Home() {
                             <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
                             <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
                               {(item[2] as string[]).join(', ')}
+                            </td>
+                            <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+                              {(item[3] as string[]).length > 0 ? (
+                                <span style={{ 
+                                  background: '#e8f5e9', 
+                                  color: '#27ae60', 
+                                  padding: '4px 8px', 
+                                  borderRadius: '4px',
+                                  fontWeight: '600',
+                                  display: 'inline-block'
+                                }}>
+                                  {(item[3] as string[]).join(', ')}
+                                </span>
+                              ) : (
+                                <span style={{ color: '#bbb' }}>-</span>
+                              )}
                             </td>
                             <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
                             <td className="percentage" style={{ textAlign: 'center' }}>
@@ -1070,6 +1232,7 @@ export default function Home() {
                           <th>อันดับ</th>
                           <th>เลขกลับ</th>
                           <th>ตัวอย่าง</th>
+                          <th>กลุ่มเลขตั้งต้น</th>
                           <th>ครั้ง</th>
                           <th>ร้อยละ</th>
                         </tr>
@@ -1081,6 +1244,22 @@ export default function Home() {
                             <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
                             <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
                               {(item[2] as string[]).join(', ')}
+                            </td>
+                            <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+                              {(item[3] as string[]).length > 0 ? (
+                                <span style={{ 
+                                  background: '#e8f5e9', 
+                                  color: '#27ae60', 
+                                  padding: '4px 8px', 
+                                  borderRadius: '4px',
+                                  fontWeight: '600',
+                                  display: 'inline-block'
+                                }}>
+                                  {(item[3] as string[]).join(', ')}
+                                </span>
+                              ) : (
+                                <span style={{ color: '#bbb' }}>-</span>
+                              )}
                             </td>
                             <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
                             <td className="percentage" style={{ textAlign: 'center' }}>
@@ -1188,6 +1367,7 @@ export default function Home() {
                           <th>อันดับ</th>
                           <th>เลขกลับ</th>
                           <th>ตัวอย่าง</th>
+                          <th>กลุ่มเลขตั้งต้น</th>
                           <th>ครั้ง</th>
                           <th>ร้อยละ</th>
                         </tr>
@@ -1199,6 +1379,22 @@ export default function Home() {
                             <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
                             <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
                               {(item[2] as string[]).join(', ')}
+                            </td>
+                            <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+                              {(item[3] as string[]).length > 0 ? (
+                                <span style={{ 
+                                  background: '#e8f5e9', 
+                                  color: '#27ae60', 
+                                  padding: '4px 8px', 
+                                  borderRadius: '4px',
+                                  fontWeight: '600',
+                                  display: 'inline-block'
+                                }}>
+                                  {(item[3] as string[]).join(', ')}
+                                </span>
+                              ) : (
+                                <span style={{ color: '#bbb' }}>-</span>
+                              )}
                             </td>
                             <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
                             <td className="percentage" style={{ textAlign: 'center' }}>
@@ -1241,6 +1437,7 @@ export default function Home() {
                           <th>อันดับ</th>
                           <th>เลขกลับ</th>
                           <th>ตัวอย่าง</th>
+                          <th>กลุ่มเลขตั้งต้น</th>
                           <th>ครั้ง</th>
                           <th>ร้อยละ</th>
                         </tr>
@@ -1252,6 +1449,22 @@ export default function Home() {
                             <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
                             <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
                               {(item[2] as string[]).join(', ')}
+                            </td>
+                            <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+                              {(item[3] as string[]).length > 0 ? (
+                                <span style={{ 
+                                  background: '#e8f5e9', 
+                                  color: '#27ae60', 
+                                  padding: '4px 8px', 
+                                  borderRadius: '4px',
+                                  fontWeight: '600',
+                                  display: 'inline-block'
+                                }}>
+                                  {(item[3] as string[]).join(', ')}
+                                </span>
+                              ) : (
+                                <span style={{ color: '#bbb' }}>-</span>
+                              )}
                             </td>
                             <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
                             <td className="percentage" style={{ textAlign: 'center' }}>
@@ -1294,6 +1507,7 @@ export default function Home() {
                           <th>อันดับ</th>
                           <th>เลขกลับ</th>
                           <th>ตัวอย่าง</th>
+                          <th>กลุ่มเลขตั้งต้น</th>
                           <th>ครั้ง</th>
                           <th>ร้อยละ</th>
                         </tr>
@@ -1305,6 +1519,22 @@ export default function Home() {
                             <td className="number" style={{ textAlign: 'center' }}>{item[0]}</td>
                             <td style={{ textAlign: 'center', fontSize: '0.9rem', color: '#666' }}>
                               {(item[2] as string[]).join(', ')}
+                            </td>
+                            <td style={{ textAlign: 'center', fontSize: '0.85rem' }}>
+                              {(item[3] as string[]).length > 0 ? (
+                                <span style={{ 
+                                  background: '#e8f5e9', 
+                                  color: '#27ae60', 
+                                  padding: '4px 8px', 
+                                  borderRadius: '4px',
+                                  fontWeight: '600',
+                                  display: 'inline-block'
+                                }}>
+                                  {(item[3] as string[]).join(', ')}
+                                </span>
+                              ) : (
+                                <span style={{ color: '#bbb' }}>-</span>
+                              )}
                             </td>
                             <td className="count" style={{ textAlign: 'center' }}>{item[1]}</td>
                             <td className="percentage" style={{ textAlign: 'center' }}>
