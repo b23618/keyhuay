@@ -43,9 +43,6 @@ export default function Home() {
   const [analysisDateFilter, setAnalysisDateFilter] = useState<string>('all')
   const [yeekeeDate, setYeekeeDate] = useState<string>('')
   const [presetGroups, setPresetGroups] = useState<PresetGroup[]>([])
-  const [newPresetName, setNewPresetName] = useState<string>('')
-  const [newPresetNumbers, setNewPresetNumbers] = useState<string>('')
-  const [selectedPresets, setSelectedPresets] = useState<string[]>([])
   const [entriesPage, setEntriesPage] = useState<number>(1)
   const [totalEntries, setTotalEntries] = useState<number>(0)
   const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -305,80 +302,6 @@ export default function Home() {
       setPresetGroups(data.data || [])
     } catch (error) {
       console.error('Error fetching preset groups:', error)
-    }
-  }
-
-  const addPresetGroup = async (): Promise<void> => {
-    if (!newPresetName.trim()) {
-      showToast('กรุณากรอกชื่อกลุ่มเลข', 'warning')
-      return
-    }
-    if (!newPresetNumbers.trim()) {
-      showToast('กรุณากรอกเลข', 'warning')
-      return
-    }
-
-    const numbers = newPresetNumbers
-      .split(/[,\s]+/)
-      .map(n => n.trim())
-      .filter(n => /^\d+$/.test(n))
-
-    if (numbers.length === 0) {
-      showToast('ไม่พบเลขที่ถูกต้อง', 'warning')
-      return
-    }
-
-    try {
-      const response = await fetch('/api/presets', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: newPresetName,
-          numbers: numbers
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to save preset group')
-      }
-
-      const savedGroup = await response.json()
-      setPresetGroups([...presetGroups, savedGroup])
-      setNewPresetName('')
-      setNewPresetNumbers('')
-      showToast(`✅ เพิ่มกลุ่มเลข "${newPresetName}" สำเร็จ`, 'success')
-    } catch (error) {
-      console.error('Error saving preset group:', error)
-      showToast('❌ เกิดข้อผิดพลาดในการบันทึก', 'error')
-    }
-  }
-
-  const deletePresetGroup = async (id: string): Promise<void> => {
-    try {
-      const response = await fetch(`/api/presets/${id}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to delete preset group')
-      }
-
-      setPresetGroups(presetGroups.filter(g => g.id !== id))
-      setSelectedPresets(selectedPresets.filter(sid => sid !== id))
-      showToast('✅ ลบกลุ่มเลขสำเร็จ', 'success')
-    } catch (error) {
-      console.error('Error deleting preset group:', error)
-      showToast('❌ เกิดข้อผิดพลาดในการลบ', 'error')
-    }
-  }
-
-  const togglePresetSelection = (id: string): void => {
-    if (selectedPresets.includes(id)) {
-      setSelectedPresets(selectedPresets.filter(sid => sid !== id))
-    } else {
-      setSelectedPresets([...selectedPresets, id])
     }
   }
 
