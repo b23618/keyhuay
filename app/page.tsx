@@ -13,6 +13,7 @@ interface LotteryEntry {
   digitLength: number
   date: string
   timestamp: number
+  round?: number
 }
 
 interface Toast {
@@ -34,6 +35,8 @@ export default function Home() {
   const [analysisTab, setAnalysisTab] = useState<3 | 4>(4)
   const [analysisTypeTab, setAnalysisTypeTab] = useState<'thai' | 'hanoi' | 'yeekee'>('thai')
   const [analysisDateFilter, setAnalysisDateFilter] = useState<string>('all')
+  const [roundNumber, setRoundNumber] = useState<string>('')
+  const [analysisRoundFilter, setAnalysisRoundFilter] = useState<string>('all')
   const [entriesPage, setEntriesPage] = useState<number>(1)
   const [totalEntries, setTotalEntries] = useState<number>(0)
   const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -43,6 +46,8 @@ export default function Home() {
     hanoi: Array<{ number: string; count: number; examples: string[] }>
     yeekee: Array<{ number: string; count: number; examples: string[] }>
   } | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editValues, setEditValues] = useState<{ number: string; type: 'thai' | 'hanoi' | 'yeekee'; round?: string }>({ number: '', type: 'thai' })
   const ENTRIES_PER_PAGE = 50
 
   const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info'): void => {
@@ -286,6 +291,11 @@ export default function Home() {
       return
     }
 
+    if (lotteryType === 'yeekee' && !roundNumber) {
+      showToast('กรุณากรอกรอบสำหรับยีกี่', 'warning')
+      return
+    }
+
     const now = new Date()
     const dateStr = now.toLocaleDateString('th-TH', {
       year: 'numeric',
@@ -312,6 +322,7 @@ export default function Home() {
           digitLength,
           date: `${dateStr} ${timeStr}`,
           timestamp,
+          round: lotteryType === 'yeekee' ? parseInt(roundNumber) : undefined,
         }),
       })
 
@@ -328,11 +339,13 @@ export default function Home() {
         digitLength,
         date: `${dateStr} ${timeStr}`,
         timestamp,
+        round: lotteryType === 'yeekee' ? parseInt(roundNumber) : undefined,
       }
 
       setLotteryEntries([newEntry, ...lotteryEntries])
       setAllLotteryEntries([newEntry, ...allLotteryEntries])
       setInputNumber('')
+      setRoundNumber('')
       showToast('✅ บันทึกเลขสำเร็จ', 'success')
     } catch (error) {
       console.error('Error saving entry:', error)
@@ -352,9 +365,70 @@ export default function Home() {
 
       setLotteryEntries(lotteryEntries.filter((entry) => entry.id !== id))
       setAllLotteryEntries(allLotteryEntries.filter((entry) => entry.id !== id))
+      showToast('✅ ลบข้อมูลสำเร็จ', 'success')
     } catch (error) {
       console.error('Error deleting entry:', error)
       showToast('❌ เกิดข้อผิดพลาดในการลบ', 'error')
+    }
+  }
+
+  const startEdit = (entry: LotteryEntry): void => {
+    setEditingId(entry.id)
+    setEditValues({
+      number: entry.number,
+      type: entry.type,
+      round: entry.round?.toString() || ''
+    })
+  }
+
+  const cancelEdit = (): void => {
+    setEditingId(null)
+    setEditValues({ number: '', type: 'thai' })
+  }
+
+  const updateLotteryEntry = async (id: string): Promise<void> => {
+    if (!editValues.number || editValues.number.length < 3) {
+      showToast('กรุณากรอกเลขให้ถูกต้อง', 'warning')
+      return
+    }
+
+    if (editValues.type === 'yeekee' && !editValues.round) {
+      showToast('กรุณากรอกรอบสำหรับยีกี่', 'warning')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/lottery/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          number: editValues.number,
+          type: editValues.type,
+          round: editValues.type === 'yeekee' ? parseInt(editValues.round!) : null,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update entry')
+      }
+
+      const updatedEntry = await response.json()
+
+      setLotteryEntries(lotteryEntries.map(entry => 
+        entry.id === id ? { ...entry, ...updatedEntry } : entry
+      ))
+      setAllLotteryEntries(allLotteryEntries.map(entry => 
+        entry.id === id ? { ...entry, ...updatedEntry } : entry
+      ))
+
+      setEditingId(null)
+      setEditValues({ number: '', type: 'thai' })
+      showToast('✅ แก้ไขข้อมูลสำเร็จ', 'success')
+    } catch (error) {
+      console.error('Error updating entry:', error)
+      showToast('❌ เกิดข้อผิดพลาดในการแก้ไข', 'error')
     }
   }
 
@@ -375,7 +449,7 @@ export default function Home() {
     return digits
   }
 
-  const analyzeSavedEntries = (filterByDigitLength?: 3 | 4, filterByType?: 'thai' | 'hanoi' | 'yeekee', filterByDate?: string): { [key: string]: { count: number; examples: string[] } } => {
+  const analyzeSavedEntries = (filterByDigitLength?: 3 | 4, filterByType?: 'thai' | 'hanoi' | 'yeekee', filterByDate?: string, filterByRound?: string): { [key: string]: { count: number; examples: string[] } } => {
     const entryFrequency: { [key: string]: { idSet: Set<string>; examples: string[] } } = {}
     allLotteryEntries.forEach((entry) => {
       if (filterByDigitLength && entry.digitLength !== filterByDigitLength) {
@@ -387,6 +461,11 @@ export default function Home() {
       if (filterByDate && filterByDate !== 'all') {
         const entryDate = entry.date.split(' ')[0]
         if (entryDate !== filterByDate) {
+          return
+        }
+      }
+      if (filterByRound && filterByRound !== 'all' && entry.type === 'yeekee') {
+        if (!entry.round || entry.round.toString() !== filterByRound) {
           return
         }
       }
@@ -430,7 +509,7 @@ export default function Home() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
-  const savedEntryFrequency3DigitYeekee = analyzeSavedEntries(3, 'yeekee', analysisDateFilter)
+  const savedEntryFrequency3DigitYeekee = analyzeSavedEntries(3, 'yeekee', analysisDateFilter, analysisRoundFilter)
   const sortedSavedFrequency3DigitYeekee = Object.entries(savedEntryFrequency3DigitYeekee)
     .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
     .sort((a, b) => b[1] - a[1])
@@ -455,7 +534,7 @@ export default function Home() {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
 
-  const savedEntryFrequency4DigitYeekee = analyzeSavedEntries(4, 'yeekee', analysisDateFilter)
+  const savedEntryFrequency4DigitYeekee = analyzeSavedEntries(4, 'yeekee', analysisDateFilter, analysisRoundFilter)
   const sortedSavedFrequency4DigitYeekee = Object.entries(savedEntryFrequency4DigitYeekee)
     .map(([normalized, data]) => [normalized, data.count, data.examples] as const)
     .sort((a, b) => b[1] - a[1])
@@ -463,6 +542,15 @@ export default function Home() {
 
   // Extract unique dates from lottery entries
   const uniqueDates = Array.from(new Set(allLotteryEntries.map((e) => e.date.split(' ')[0]))).sort().reverse()
+
+  // Extract unique rounds from Yeekee entries
+  const uniqueRounds = Array.from(
+    new Set(
+      allLotteryEntries
+        .filter((e) => e.type === 'yeekee' && e.round)
+        .map((e) => e.round!.toString())
+    )
+  ).sort((a, b) => parseInt(a) - parseInt(b))
 
   // Filter entries by date if selected
   const dateFilteredEntries = analysisDateFilter === 'all' 
@@ -543,6 +631,26 @@ export default function Home() {
               <option value="yeekee">🎲 ยีกี่</option>
             </select>
           </div>
+          {lotteryType === 'yeekee' && (
+            <div className="input-group">
+              <label htmlFor="round-number">รอบที่</label>
+              <input
+                id="round-number"
+                type="text"
+                inputMode="numeric"
+                value={roundNumber}
+                onChange={(e) => setRoundNumber(e.target.value.replace(/\D/g, ''))}
+                placeholder="เช่น 1, 2, 3..."
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '2px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '1rem',
+                }}
+              />
+            </div>
+          )}
           {/* <button className="button" onClick={() => generateReversals(inputNumber)}>
             🔄 กลับเลข
           </button> */}
@@ -716,33 +824,63 @@ export default function Home() {
 
             {!isLoadingAnalysis && (
               <>
-                {/* Date filter */}
-                <div style={{ marginBottom: '20px' }}>
-                  <label htmlFor="date-filter" style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
-                    📅 กรองตามวันที่
-                  </label>
-                  <select
-                    id="date-filter"
-                    value={analysisDateFilter}
-                    onChange={(e) => setAnalysisDateFilter(e.target.value)}
-                    style={{
-                      width: '100%',
-                      maxWidth: '300px',
-                      padding: '10px',
-                      fontSize: '1rem',
-                      border: '2px solid #3498db',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      background: 'white',
-                    }}
-                  >
-                    <option value="all">ทั้งหมด</option>
-                    {uniqueDates.map((date) => (
-                      <option key={date} value={date}>
-                        {date}
-                      </option>
-                    ))}
-                  </select>
+                {/* Date and Round filters */}
+                <div style={{ display: 'grid', gridTemplateColumns: analysisTypeTab === 'yeekee' ? '1fr 1fr' : '1fr', gap: '15px', marginBottom: '20px' }}>
+                  <div>
+                    <label htmlFor="date-filter" style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
+                      📅 กรองตามวันที่
+                    </label>
+                    <select
+                      id="date-filter"
+                      value={analysisDateFilter}
+                      onChange={(e) => setAnalysisDateFilter(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        fontSize: '1rem',
+                        border: '2px solid #3498db',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        background: 'white',
+                      }}
+                    >
+                      <option value="all">ทั้งหมด</option>
+                      {uniqueDates.map((date) => (
+                        <option key={date} value={date}>
+                          {date}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {analysisTypeTab === 'yeekee' && (
+                    <div>
+                      <label htmlFor="round-filter" style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#333' }}>
+                        🎲 กรองตามรอบ
+                      </label>
+                      <select
+                        id="round-filter"
+                        value={analysisRoundFilter}
+                        onChange={(e) => setAnalysisRoundFilter(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px',
+                          fontSize: '1rem',
+                          border: '2px solid #9b59b6',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          background: 'white',
+                        }}
+                      >
+                        <option value="all">ทุกรอบ</option>
+                        {uniqueRounds.map((round) => (
+                          <option key={round} value={round}>
+                            รอบที่ {round}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 {/* Tabs for digit length */}
@@ -1262,8 +1400,9 @@ export default function Home() {
                       <th style={{ textAlign: 'center' }}>เลข</th>
                       <th style={{ textAlign: 'center' }}>จำนวนตัว</th>
                       <th style={{ textAlign: 'center' }}>ประเภท</th>
+                      <th style={{ textAlign: 'center' }}>รอบ</th>
                       <th style={{ textAlign: 'center' }}>วันที่และเวลา</th>
-                      <th style={{ textAlign: 'center' }}>ลบ</th>
+                      <th style={{ textAlign: 'center' }}>จัดการ</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1272,35 +1411,156 @@ export default function Home() {
                         <td style={{ textAlign: 'center', fontWeight: '600' }}>
                           #{(entriesPage - 1) * ENTRIES_PER_PAGE + idx + 1}
                         </td>
-                        <td className="number" style={{ textAlign: 'center', fontSize: '1.2rem' }}>
-                          {entry.number}
-                        </td>
-                        <td style={{ textAlign: 'center', fontWeight: '600', color: '#3498db' }}>
-                          {entry.digitLength} ตัว
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          {getLotteryTypeLabel(entry.type)}
-                        </td>
-                        <td style={{ textAlign: 'center', color: '#666' }}>
-                          {entry.date}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <button
-                            onClick={() => deleteLotteryEntry(entry.id)}
-                            style={{
-                              background: '#e74c3c',
-                              color: 'white',
-                              border: 'none',
-                              padding: '6px 12px',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              fontSize: '0.9rem',
-                              fontWeight: '600',
-                            }}
-                          >
-                            ลบ
-                          </button>
-                        </td>
+                        {editingId === entry.id ? (
+                          <>
+                            <td style={{ textAlign: 'center' }}>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                value={editValues.number}
+                                onChange={(e) => setEditValues({ ...editValues, number: e.target.value.replace(/\D/g, '') })}
+                                style={{
+                                  width: '80px',
+                                  padding: '4px 8px',
+                                  fontSize: '1rem',
+                                  border: '2px solid #3498db',
+                                  borderRadius: '4px',
+                                  textAlign: 'center'
+                                }}
+                              />
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              {entry.digitLength} ตัว
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <select
+                                value={editValues.type}
+                                onChange={(e) => setEditValues({ ...editValues, type: e.target.value as 'thai' | 'hanoi' | 'yeekee' })}
+                                style={{
+                                  padding: '4px 8px',
+                                  fontSize: '0.9rem',
+                                  border: '2px solid #3498db',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <option value="thai">🇹🇭 ไทย</option>
+                                <option value="hanoi">🇻🇳 ฮานอย</option>
+                                <option value="yeekee">🎲 ยีกี่</option>
+                              </select>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              {editValues.type === 'yeekee' ? (
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={editValues.round || ''}
+                                  onChange={(e) => setEditValues({ ...editValues, round: e.target.value.replace(/\D/g, '') })}
+                                  placeholder="รอบ"
+                                  style={{
+                                    width: '50px',
+                                    padding: '4px 8px',
+                                    fontSize: '0.9rem',
+                                    border: '2px solid #9b59b6',
+                                    borderRadius: '4px',
+                                    textAlign: 'center'
+                                  }}
+                                />
+                              ) : (
+                                <span style={{ color: '#999' }}>-</span>
+                              )}
+                            </td>
+                            <td style={{ textAlign: 'center', color: '#666', fontSize: '0.85rem' }}>
+                              {entry.date}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
+                                <button
+                                  onClick={() => updateLotteryEntry(entry.id)}
+                                  style={{
+                                    background: '#27ae60',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '6px 12px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.85rem',
+                                    fontWeight: '600',
+                                  }}
+                                >
+                                  ✓ บันทึก
+                                </button>
+                                <button
+                                  onClick={cancelEdit}
+                                  style={{
+                                    background: '#95a5a6',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '6px 12px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.85rem',
+                                    fontWeight: '600',
+                                  }}
+                                >
+                                  ✕ ยกเลิก
+                                </button>
+                              </div>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="number" style={{ textAlign: 'center', fontSize: '1.2rem' }}>
+                              {entry.number}
+                            </td>
+                            <td style={{ textAlign: 'center', fontWeight: '600', color: '#3498db' }}>
+                              {entry.digitLength} ตัว
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              {getLotteryTypeLabel(entry.type)}
+                            </td>
+                            <td style={{ textAlign: 'center', fontWeight: '600', color: '#9b59b6' }}>
+                              {entry.type === 'yeekee' && entry.round ? `รอบ ${entry.round}` : '-'}
+                            </td>
+                            <td style={{ textAlign: 'center', color: '#666' }}>
+                              {entry.date}
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
+                                <button
+                                  onClick={() => startEdit(entry)}
+                                  style={{
+                                    background: '#3498db',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '6px 12px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.85rem',
+                                    fontWeight: '600',
+                                  }}
+                                >
+                                  ✏️ แก้ไข
+                                </button>
+                                <button
+                                  onClick={() => deleteLotteryEntry(entry.id)}
+                                  style={{
+                                    background: '#e74c3c',
+                                    color: 'white',
+                                    border: 'none',
+                                    padding: '6px 12px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.85rem',
+                                    fontWeight: '600',
+                                  }}
+                                >
+                                  🗑️ ลบ
+                                </button>
+                              </div>
+                            </td>
+                          </>
+                        )}
                       </tr>
                     ))}
                 </tbody>
