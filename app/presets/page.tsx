@@ -260,8 +260,15 @@ export default function PresetsPage() {
 
       {/* Header */}
       <div style={{ marginBottom: '30px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#2c3e50' }}>
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'flex-start',
+          marginBottom: '10px',
+          flexWrap: 'wrap',
+          gap: '15px'
+        }}>
+          <h1 style={{ fontSize: 'clamp(1.5rem, 5vw, 2rem)', fontWeight: '700', color: '#2c3e50', margin: 0 }}>
             📌 จัดการเลขตั้งต้น
           </h1>
           <Link 
@@ -273,18 +280,19 @@ export default function PresetsPage() {
               borderRadius: '8px',
               textDecoration: 'none',
               fontWeight: '600',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              whiteSpace: 'nowrap'
             }}
           >
             ← กลับหน้าหลัก
           </Link>
         </div>
-        <p style={{ color: '#7f8c8d', fontSize: '1rem' }}>
+        <p style={{ color: '#7f8c8d', fontSize: 'clamp(0.9rem, 2vw, 1rem)', margin: '10px 0 0 0' }}>
           จัดการกลุ่มเลขตั้งต้น เช่น เลขอมตะ, เลขตองแท้ เพื่อใช้ในการวิเคราะห์
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
         {/* Add New Preset Group */}
         <div className="card">
           <h2 style={{ fontSize: '1.5rem', marginBottom: '20px', color: '#2c3e50' }}>

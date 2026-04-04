@@ -667,23 +667,42 @@ export default function Home() {
             <h1>🎰 Keyhuay - ระบบคีย์หวย</h1>
             <p>กรอกเลขแล้ววิเคราะห์เลขที่ออกบ่อยสุด</p>
           </div>
-          <a 
-            href="/presets"
-            style={{
-              padding: '12px 24px',
-              background: '#27ae60',
-              color: 'white',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              fontWeight: '600',
-              fontSize: '1rem',
-              transition: 'all 0.2s',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-              display: 'inline-block'
-            }}
-          >
-            📌 จัดการเลขตั้งต้น
-          </a>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <a 
+              href="/prediction"
+              style={{
+                padding: '12px 24px',
+                background: '#e74c3c',
+                color: 'white',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontWeight: '600',
+                fontSize: '1rem',
+                transition: 'all 0.2s',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                display: 'inline-block'
+              }}
+            >
+              🔮 ทำนายหวย
+            </a>
+            <a 
+              href="/presets"
+              style={{
+                padding: '12px 24px',
+                background: '#27ae60',
+                color: 'white',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                fontWeight: '600',
+                fontSize: '1rem',
+                transition: 'all 0.2s',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                display: 'inline-block'
+              }}
+            >
+              📌 จัดการเลขตั้งต้น
+            </a>
+          </div>
         </div>
       </div>
 
