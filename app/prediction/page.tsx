@@ -26,7 +26,7 @@ export default function PredictionPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [pageSize, setPageSize] = useState(50)
+  const pageSize = 50
 
   const generatePredictions = async (page: number = 1) => {
     setIsLoading(true)
